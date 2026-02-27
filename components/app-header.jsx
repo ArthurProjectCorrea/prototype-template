@@ -7,9 +7,9 @@ import Image from 'next/image';
 
 const data = {
   user: {
-    name: 'shadcn Acme',
-    email: 'm@example.com',
-    avatar: '/avatars/shadcn.jpg',
+    name: 'Arthur Correa',
+    email: 'arthur.correa@dainai.com',
+    avatar: '',
   },
 };
 
@@ -31,7 +31,9 @@ export function SiteHeader() {
         </div>
       </div>
       <div className="p-2 flex items-center justify-end gap-2 w-xs">
-        <p className="font-medium">Ola, {data.user.name}</p>
+        <p className="font-medium text-muted-foreground">
+          Ola, {data.user.name}
+        </p>
         <AppUser user={data.user} />
       </div>
     </header>

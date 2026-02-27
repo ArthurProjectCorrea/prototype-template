@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { LogOutIcon, User } from 'lucide-react';
+import Link from 'next/link';
 
 export function AppUser({ user }) {
   return (
@@ -29,10 +30,12 @@ export function AppUser({ user }) {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <LogOutIcon />
-          Sair
-        </DropdownMenuItem>
+        <Link href="/login">
+          <DropdownMenuItem className="flex items-center gap-2 w-full">
+            <LogOutIcon />
+            <span>Sair</span>
+          </DropdownMenuItem>
+        </Link>
       </DropdownMenuContent>
     </DropdownMenu>
   );
