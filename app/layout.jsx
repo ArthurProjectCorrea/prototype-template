@@ -32,7 +32,7 @@ export default function RootLayout({ children }) {
           enableSystem
           disableTransitionOnChange
         >
-          <NextTopLoader />
+          <NextTopLoader showSpinner={false} />
           <TooltipProvider>{children}</TooltipProvider>
         </ThemeProvider>
         <Toaster />
