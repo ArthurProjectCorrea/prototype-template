@@ -1,3 +1,9 @@
+# [1.2.0](https://github.com/ArthurProjectCorrea/prototype-template/compare/v1.1.0...v1.2.0) (2026-02-28)
+
+### Features
+
+- add init-template script ([38553c4](https://github.com/ArthurProjectCorrea/prototype-template/commit/38553c47a5f22998470cf5c98fc80c8f9bff6590))
+
 # [1.1.0](https://github.com/ArthurProjectCorrea/prototype-template/compare/v1.0.0...v1.1.0) (2026-02-28)
 
 ### Features
