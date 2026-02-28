@@ -1,23 +1,20 @@
 [
   {
-    "name": "Alice Example",
-    "email": "alice@example.com",
-    "positions": "Administrador",
-    "created_at": "2026-01-10T09:15:00Z",
-    "updated_at": "2026-02-15T14:23:00Z"
+    "id": 1,
+    "name": "Carlos Eduardo da Silva",
+    "email": "me@exemple.com",
+    "password": "ola123",
+    "position_id": 1,
+    "created_at": "2026-02-28T14:33:30.569Z",
+    "updated_at": "2026-02-28T17:26:22.593Z"
   },
   {
-    "name": "Bob Sample",
-    "email": "bob@example.com",
-    "positions": "Gerente de projetos",
-    "created_at": "2026-01-20T11:30:00Z",
-    "updated_at": "2026-02-18T10:05:00Z"
-  },
-  {
-    "name": "Carlos Silva",
-    "email": "carlos.silva@example.com",
-    "positions": "Analista de Requisitos",
-    "created_at": "2026-02-01T08:00:00Z",
-    "updated_at": "2026-02-25T16:45:00Z"
+    "id": 2,
+    "name": "Jose Almeida",
+    "email": "jose@exemple.com",
+    "password": "password",
+    "position_id": 1,
+    "created_at": "2026-02-28T14:40:56.792Z",
+    "updated_at": "2026-02-28T14:40:56.792Z"
   }
 ]

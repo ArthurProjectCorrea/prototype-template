@@ -118,10 +118,14 @@ function AlertDialogAction({
   className,
   variant = 'default',
   size = 'default',
+  loading = false,
   ...props
 }) {
+  // allow caller to pass a loading prop so that the underlying Button can
+  // display its built-in spinner.  Historically the prop was blindly
+  // forwarded to the Radix primitive which never rendered anything.
   return (
-    <Button variant={variant} size={size} asChild>
+    <Button variant={variant} size={size} asChild loading={loading}>
       <AlertDialogPrimitive.Action
         data-slot="alert-dialog-action"
         className={cn(className)}

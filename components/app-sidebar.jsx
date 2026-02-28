@@ -12,9 +12,11 @@ import {
 
 import { NavMain } from '@/components/nav-main';
 import { NavSecondary } from '@/components/nav-secondary';
+import { NavUser } from '@/components/nav-user';
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -40,11 +42,11 @@ const data = {
         },
         {
           title: 'Cargos',
-          url: '#',
+          url: '/config/positions',
         },
         {
           title: 'Departamentos',
-          url: '#',
+          url: '/config/departments',
         },
       ],
     },
@@ -69,6 +71,22 @@ const data = {
 };
 
 export function AppSidebar({ ...props }) {
+  const [currentUser, setCurrentUser] = React.useState(null);
+  const [positions, setPositions] = React.useState([]);
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem('user');
+    if (stored) setCurrentUser(JSON.parse(stored));
+
+    fetch('/api/positions')
+      .then((r) => r.json())
+      .then(setPositions)
+      .catch(console.error);
+  }, []);
+
+  const positionName =
+    positions.find((p) => p.id === currentUser?.position_id)?.name || '';
+
   return (
     <Sidebar
       collapsible="icon"
@@ -78,16 +96,16 @@ export function AppSidebar({ ...props }) {
       <SidebarHeader className="mt-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link href="/">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg ">
-                  <Command className="size-4" />
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Dainai Corp</span>
-                  <span className="truncate text-xs">Administrador</span>
-                </div>
-              </Link>
+            <SidebarMenuButton size="lg">
+              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg ">
+                <Command className="size-4" />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight">
+                <span className="truncate font-medium">Dainai Corp</span>
+                <span className="truncate text-xs">
+                  {positionName || 'Usuário'}
+                </span>
+              </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -96,6 +114,9 @@ export function AppSidebar({ ...props }) {
         <NavMain items={data.navMain} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
+      <SidebarFooter>
+        <NavUser user={currentUser} />
+      </SidebarFooter>
     </Sidebar>
   );
 }

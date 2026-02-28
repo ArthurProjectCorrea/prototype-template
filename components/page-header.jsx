@@ -8,6 +8,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 /**
  * @typedef Route
@@ -29,35 +30,41 @@ import {
  */
 export function PageHeader({ routes = [], title, description }) {
   return (
-    <header className="space-y-0">
-      <Breadcrumb className="text-sm p-2">
-        <BreadcrumbList>
-          {routes.map((route, idx) => {
-            const isLast = idx === routes.length - 1;
+    <header>
+      <Card>
+        <CardHeader className="flex items-center">
+          <Breadcrumb className="text-sm">
+            <BreadcrumbList>
+              {routes.map((route, idx) => {
+                const isLast = idx === routes.length - 1;
 
-            return (
-              <React.Fragment key={route.title || idx}>
-                <BreadcrumbItem>
-                  {isLast ? (
-                    <BreadcrumbPage>{route.title}</BreadcrumbPage>
-                  ) : route.href ? (
-                    <BreadcrumbLink href={route.href}>
-                      {route.title}
-                    </BreadcrumbLink>
-                  ) : (
-                    <span>{route.title}</span>
-                  )}
-                </BreadcrumbItem>
-                {!isLast && <BreadcrumbSeparator />}
-              </React.Fragment>
-            );
-          })}
-        </BreadcrumbList>
-      </Breadcrumb>
-      {/* <div className="space-y-2 p-2">
-                {title && <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight text-balance">{title}</h1>}
-                {description && <p className="leading-7 [&:not(:first-child)]:mt-6">{description}</p>}
-            </div> */}
+                return (
+                  <React.Fragment key={route.title || idx}>
+                    <BreadcrumbItem>
+                      {isLast ? (
+                        <BreadcrumbPage>{route.title}</BreadcrumbPage>
+                      ) : route.href ? (
+                        <BreadcrumbLink href={route.href}>
+                          {route.title}
+                        </BreadcrumbLink>
+                      ) : (
+                        <span>{route.title}</span>
+                      )}
+                    </BreadcrumbItem>
+                    {!isLast && <BreadcrumbSeparator />}
+                  </React.Fragment>
+                );
+              })}
+            </BreadcrumbList>
+          </Breadcrumb>
+        </CardHeader>
+        {/* <CardContent>
+          <div className="space-y-2">
+            {title && <h1 className="scroll-m-20 text-2xl font-extrabold tracking-tight text-balance">{title}</h1>}
+            {description && <p className="leading-7 [&:not(:first-child)]:mt-6">{description}</p>}
+          </div>
+        </CardContent> */}
+      </Card>
     </header>
   );
 }

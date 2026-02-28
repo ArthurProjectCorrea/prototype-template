@@ -1,40 +1,44 @@
 'use client';
 
 import * as React from 'react';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Globe } from 'lucide-react';
 import { useTheme } from 'next-themes';
 
-import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select';
 
-export function ModeToggle() {
-  const { setTheme } = useTheme();
+export function ModeToggle({ value, onChange }) {
+  const { setTheme, theme } = useTheme();
+
+  const handle = (v) => {
+    setTheme(v);
+    if (onChange) onChange(v);
+  };
+
+  // ensure select always shows current theme as default
+  const selected = value || theme || 'system';
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
-          <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-          <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme('light')}>
-          Claro
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('dark')}>
-          Escuro
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme('system')}>
-          Sistema
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Select value={selected} onValueChange={handle} className="w-full">
+      <SelectTrigger>
+        <SelectValue placeholder="Tema" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="light">
+          <Sun className="size-4 mr-2" /> Claro
+        </SelectItem>
+        <SelectItem value="dark">
+          <Moon className="size-4 mr-2" /> Escuro
+        </SelectItem>
+        <SelectItem value="system">
+          <Globe className="size-4 mr-2" /> Sistema
+        </SelectItem>
+      </SelectContent>
+    </Select>
   );
 }

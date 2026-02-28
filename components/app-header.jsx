@@ -1,19 +1,23 @@
 'use client';
 
+import * as React from 'react';
 import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { AppUser } from '@/components/app-user';
 import Image from 'next/image';
 
-const data = {
-  user: {
-    name: 'Arthur Correa',
-    email: 'arthur.correa@dainai.com',
-    avatar: '',
-  },
-};
+// header will load the authenticated user from storage
+// fallback text is handled in render
 
 export function SiteHeader() {
+  const [currentUser, setCurrentUser] = React.useState(null);
+
+  React.useEffect(() => {
+    const stored = localStorage.getItem('user');
+    if (stored) {
+      setCurrentUser(JSON.parse(stored));
+    }
+  }, []);
+
   return (
     <header className="bg-background sticky top-0 z-50 flex w-full items-center justify-between border-b">
       <div className="flex h-(--header-height) w-full items-center gap-2 px-4">
@@ -32,9 +36,8 @@ export function SiteHeader() {
       </div>
       <div className="p-2 flex items-center justify-end gap-2 w-xs">
         <p className="font-medium text-muted-foreground">
-          Ola, {data.user.name}
+          Ola, {currentUser?.name || 'Visitante'}
         </p>
-        <AppUser user={data.user} />
       </div>
     </header>
   );

@@ -1,0 +1,5 @@
+[
+  { "id": 1, "name": "view" },
+  { "id": 2, "name": "edit" },
+  { "id": 3, "name": "delete" }
+]

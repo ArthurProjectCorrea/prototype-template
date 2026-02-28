@@ -38,23 +38,69 @@ const buttonVariants = cva(
   }
 );
 
+import { Spinner } from '@/components/ui/spinner';
+
 function Button({
   className,
   variant = 'default',
   size = 'default',
   asChild = false,
+  loading = false,
+  children,
   ...props
 }) {
+  // When `asChild` is true we render a Radix `Slot.Root` which internally
+  // uses `React.Children.only` to enforce exactly one child.  If the caller
+  // passes whitespace around the single element (as is common when writing
+  // JSX on multiple lines) it will be interpreted as additional text nodes and
+  // trigger the runtime error reported in the bug.  We filter out any
+  // "empty" text nodes here so that the slot always receives a single element.
+  //
+  // Additionally, rendering a spinner as a sibling of the child would also
+  // violate the single-child requirement, so we intentionally disable the
+  // built‑in loading indicator when `asChild` is used.  Consumers who need a
+  // spinner can add one inside the wrapped element instead.
   const Comp = asChild ? Slot.Root : 'button';
+
+  let content = children;
+  if (asChild) {
+    // strip out any whitespace-only text nodes that might have been created by
+    // JSX formatting (indentation/newlines).  `Slot.Root` will call
+    // `React.Children.only` on the result, which throws if it receives more than
+    // one child.
+    const arr = React.Children.toArray(children).filter(
+      (c) => !(typeof c === 'string' && /^\s*$/.test(c))
+    );
+    content = arr.length === 1 ? arr[0] : arr;
+
+    // if the button is in a loading state we still want to show the spinner,
+    // but it needs to be rendered *inside* the single child element so that the
+    // slot requirement is satisfied.  We clone the element and prepend the
+    // spinner to its children.
+    if (loading && React.isValidElement(content)) {
+      const existingChildren = content.props.children;
+      content = React.cloneElement(
+        content,
+        undefined,
+        <>
+          <Spinner className="mr-2" />
+          {existingChildren}
+        </>
+      );
+    }
+  }
 
   return (
     <Comp
+      disabled={loading || props.disabled}
       data-slot="button"
       data-variant={variant}
       data-size={size}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {content}
+    </Comp>
   );
 }
 
