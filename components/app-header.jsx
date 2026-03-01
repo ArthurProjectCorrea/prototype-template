@@ -19,10 +19,13 @@ export function SiteHeader() {
   }, []);
 
   return (
-    <header className="bg-background sticky top-0 z-50 flex w-full items-center justify-between border-b">
+    <header className="bg-gradient-to-r from-primary to-primary/50 text-white sticky top-0 z-50 flex w-full items-center justify-between border-b">
       <div className="flex h-(--header-height) w-full items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
-        <Separator orientation="vertical" className="mr-2 h-4" />
+        <Separator
+          orientation="vertical"
+          className="mr-2 h-4 bg-muted-foreground"
+        />
         <div className="flex">
           <Image
             className="h-12 w-auto transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:rotate-[35deg] active:scale-125 active:rotate-[35deg] active:duration-100"
@@ -34,8 +37,8 @@ export function SiteHeader() {
           />
         </div>
       </div>
-      <div className="p-2 flex items-center justify-end gap-2 w-xs">
-        <p className="font-medium text-muted-foreground">
+      <div className="p-2 flex items-center justify-end gap-2 w-xs text-primary-foreground">
+        <p className="font-medium text-muted">
           Ola, {currentUser?.name || 'Visitante'}
         </p>
       </div>
