@@ -1,3 +1,9 @@
+## [1.2.1](https://github.com/ArthurProjectCorrea/prototype-template/compare/v1.2.0...v1.2.1) (2026-03-01)
+
+### Bug Fixes
+
+- **ui:** ajustes em estilos globais e componentes de cabeçalho/usuário ([afcf39d](https://github.com/ArthurProjectCorrea/prototype-template/commit/afcf39d1e374d48f5340600e5d8c161675827c75))
+
 # [1.2.0](https://github.com/ArthurProjectCorrea/prototype-template/compare/v1.1.0...v1.2.0) (2026-02-28)
 
 ### Features
