@@ -1,3 +1,9 @@
+# [1.3.0](https://github.com/ArthurProjectCorrea/prototype-template/compare/v1.2.1...v1.3.0) (2026-03-01)
+
+### Features
+
+- **access,user-form:** accordion de acessos e filtro de cargos ([ef09811](https://github.com/ArthurProjectCorrea/prototype-template/commit/ef0981111ca3be4ace34c68ca1665fbae2efd092))
+
 ## [1.2.1](https://github.com/ArthurProjectCorrea/prototype-template/compare/v1.2.0...v1.2.1) (2026-03-01)
 
 ### Bug Fixes
