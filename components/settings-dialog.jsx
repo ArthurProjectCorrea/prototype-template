@@ -26,8 +26,8 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
-import { ProfileForm } from '@/components/form/profile-form';
-import { ConfigForm } from '@/components/form/config-form';
+import { ProfileForm } from '@/components/forms/profile-form';
+import { ConfigForm } from '@/components/forms/config-form';
 import { PermissionsSection } from '@/components/permissions-section';
 import {
   Dialog,

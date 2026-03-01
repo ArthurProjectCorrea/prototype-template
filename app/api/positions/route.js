@@ -1,96 +1,94 @@
-import fs from 'fs/promises';
-import path from 'path';
+import * as db from '@/lib/db';
 
-const filePath = path.join(process.cwd(), 'database', 'positions.json');
+const TABLE = 'positions';
 
-async function readPositions() {
-  const txt = await fs.readFile(filePath, 'utf-8');
-  return JSON.parse(txt);
-}
-
-async function writePositions(positions) {
-  positions.sort((a, b) => (a.id || 0) - (b.id || 0));
-  await fs.writeFile(filePath, JSON.stringify(positions, null, 2));
-}
+// Relation definitions for this table
+const RELATIONS = {
+  department: { table: 'departments', foreignKey: 'departments', type: 'many' },
+  users: { table: 'users', referenceKey: 'position_id', type: 'reverse' },
+};
 
 export async function GET(req) {
-  const positions = await readPositions();
-  return new Response(JSON.stringify(positions), {
-    headers: { 'Content-Type': 'application/json' },
+  const params = db.parseQueryParams(req);
+  const { id, include, ...where } = params;
+
+  // Get single record by ID
+  if (id) {
+    const record = await db.getById(TABLE, id, {
+      include: include ? include.split(',') : [],
+      relations: RELATIONS,
+    });
+    if (!record) return db.errorResponse('Cargo não encontrado', 404);
+    return db.jsonResponse(record);
+  }
+
+  // Get all records with optional filters
+  const data = await db.getAll(TABLE, {
+    where: Object.keys(where).length ? where : undefined,
+    include: include ? include.split(',') : [],
+    relations: RELATIONS,
   });
+
+  return db.jsonResponse(data);
 }
 
 export async function POST(req) {
-  const newPos = await req.json();
-  // departments may be a number or an array of numbers
-  if (
-    !(
-      typeof newPos.departments === 'number' ||
-      (Array.isArray(newPos.departments) &&
-        newPos.departments.every((d) => typeof d === 'number'))
-    )
-  ) {
-    return new Response('Invalid departments list', { status: 400 });
+  const body = await req.json();
+
+  // Validate departments field
+  if (body.departments !== undefined) {
+    const isValid =
+      typeof body.departments === 'number' ||
+      (Array.isArray(body.departments) &&
+        body.departments.every((d) => typeof d === 'number'));
+    if (!isValid) {
+      return db.errorResponse('Lista de departamentos inválida', 400);
+    }
   }
-  const positions = await readPositions();
-  const nextId = positions.length
-    ? Math.max(...positions.map((p) => p.id)) + 1
-    : 1;
-  const now = new Date().toISOString();
-  const posWithId = {
-    id: nextId,
-    ...newPos,
-    created_at: now,
-    updated_at: now,
-  };
-  positions.push(posWithId);
-  await writePositions(positions);
-  return new Response(JSON.stringify(posWithId), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+
+  const record = await db.create(TABLE, body);
+  return db.jsonResponse(record, 201);
 }
 
 export async function PUT(req) {
-  const updated = await req.json();
-  if (
-    updated.departments !== undefined &&
-    !(
-      typeof updated.departments === 'number' ||
-      (Array.isArray(updated.departments) &&
-        updated.departments.every((d) => typeof d === 'number'))
-    )
-  ) {
-    return new Response('Invalid departments list', { status: 400 });
+  const body = await req.json();
+  const { id, ...updates } = body;
+
+  if (!id) return db.errorResponse('ID é obrigatório', 400);
+
+  // Validate departments field if present
+  if (updates.departments !== undefined) {
+    const isValid =
+      typeof updates.departments === 'number' ||
+      (Array.isArray(updates.departments) &&
+        updates.departments.every((d) => typeof d === 'number'));
+    if (!isValid) {
+      return db.errorResponse('Lista de departamentos inválida', 400);
+    }
   }
-  const positions = await readPositions();
-  const idx = positions.findIndex((p) => p.id === updated.id);
-  if (idx === -1) {
-    return new Response('Not found', { status: 404 });
-  }
-  const now = new Date().toISOString();
-  positions[idx] = { ...positions[idx], ...updated, updated_at: now };
-  await writePositions(positions);
-  return new Response(JSON.stringify(positions[idx]), {
-    headers: { 'Content-Type': 'application/json' },
-  });
+
+  const record = await db.update(TABLE, id, updates);
+  if (!record) return db.errorResponse('Cargo não encontrado', 404);
+
+  return db.jsonResponse(record);
 }
 
 export async function DELETE(req) {
-  const { searchParams } = new URL(req.url);
-  const id = parseInt(searchParams.get('id'));
-  // ensure no users reference this position
-  const usersPath = path.join(process.cwd(), 'database', 'users.json');
-  const usersTxt = await fs.readFile(usersPath, 'utf-8');
-  const users = JSON.parse(usersTxt);
-  const inUse = users.some((u) => u.position_id === id);
-  if (inUse) {
-    return new Response(
+  const { id } = db.parseQueryParams(req);
+
+  if (!id) return db.errorResponse('ID é obrigatório', 400);
+
+  // Check for references before deleting
+  const hasReferences = await db.isReferenced('users', 'position_id', id);
+  if (hasReferences) {
+    return db.errorResponse(
       'Não é possível excluir cargo com usuários vinculados',
-      { status: 400 }
+      400
     );
   }
-  const positions = await readPositions();
-  const filtered = positions.filter((p) => p.id !== id);
-  await writePositions(filtered);
-  return new Response(null, { status: 204 });
+
+  const deleted = await db.remove(TABLE, id);
+  if (!deleted) return db.errorResponse('Cargo não encontrado', 404);
+
+  return db.noContentResponse();
 }

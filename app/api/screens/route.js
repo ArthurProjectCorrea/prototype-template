@@ -1,16 +1,51 @@
-import fs from 'fs/promises';
-import path from 'path';
+import * as db from '@/lib/db';
 
-const filePath = path.join(process.cwd(), 'database', 'screens.json');
-
-async function readScreens() {
-  const txt = await fs.readFile(filePath, 'utf-8');
-  return JSON.parse(txt);
-}
+const TABLE = 'screens';
 
 export async function GET(req) {
-  const list = await readScreens();
-  return new Response(JSON.stringify(list), {
-    headers: { 'Content-Type': 'application/json' },
+  const params = db.parseQueryParams(req);
+  const { id, ...where } = params;
+
+  // Get single record by ID
+  if (id) {
+    const record = await db.getById(TABLE, id);
+    if (!record) return db.errorResponse('Tela não encontrada', 404);
+    return db.jsonResponse(record);
+  }
+
+  // Get all records with optional filters
+  const data = await db.getAll(TABLE, {
+    where: Object.keys(where).length ? where : undefined,
   });
+
+  return db.jsonResponse(data);
+}
+
+export async function POST(req) {
+  const body = await req.json();
+  const record = await db.create(TABLE, body);
+  return db.jsonResponse(record, 201);
+}
+
+export async function PUT(req) {
+  const body = await req.json();
+  const { id, ...updates } = body;
+
+  if (!id) return db.errorResponse('ID é obrigatório', 400);
+
+  const record = await db.update(TABLE, id, updates);
+  if (!record) return db.errorResponse('Tela não encontrada', 404);
+
+  return db.jsonResponse(record);
+}
+
+export async function DELETE(req) {
+  const { id } = db.parseQueryParams(req);
+
+  if (!id) return db.errorResponse('ID é obrigatório', 400);
+
+  const deleted = await db.remove(TABLE, id);
+  if (!deleted) return db.errorResponse('Tela não encontrada', 404);
+
+  return db.noContentResponse();
 }

@@ -1,5 +1,37 @@
 [
-  { "id": 1, "name": "view" },
-  { "id": 2, "name": "edit" },
-  { "id": 3, "name": "delete" }
+  {
+    "id": 1,
+    "key": "view",
+    "name": "Visualizar",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 2,
+    "key": "edit",
+    "name": "Editar",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 3,
+    "key": "delete",
+    "name": "Excluir",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 4,
+    "key": "export",
+    "name": "Exportar",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 5,
+    "key": "grant",
+    "name": "Conceder",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-01-01T00:00:00.000Z"
+  }
 ]

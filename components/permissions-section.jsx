@@ -13,6 +13,14 @@ import {
 export function PermissionsSection() {
   const [user, setUser] = React.useState(null);
   const [permissions, setPermissions] = React.useState([]);
+  const [screens, setScreens] = React.useState([]);
+
+  React.useEffect(() => {
+    fetch('/api/screens')
+      .then((r) => r.json())
+      .then(setScreens)
+      .catch(console.error);
+  }, []);
 
   React.useEffect(() => {
     const stored = localStorage.getItem('user');
@@ -33,6 +41,12 @@ export function PermissionsSection() {
     }
   }, []);
 
+  // Busca nome da tela pelo key
+  const getScreenName = (screenKey) => {
+    const screen = screens.find((s) => s.key === screenKey);
+    return screen?.name || screenKey;
+  };
+
   if (!user) return null;
 
   return (
@@ -47,8 +61,8 @@ export function PermissionsSection() {
         <TableBody>
           {permissions.map((perm, i) => (
             <TableRow key={i}>
-              <TableCell>{perm.screen}</TableCell>
-              <TableCell>{perm.permission}</TableCell>
+              <TableCell>{getScreenName(perm.screen_key)}</TableCell>
+              <TableCell>{perm.permission_key}</TableCell>
             </TableRow>
           ))}
           {permissions.length === 0 && (

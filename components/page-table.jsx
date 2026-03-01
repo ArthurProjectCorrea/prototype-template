@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { usePermission } from '@/hooks/use-permission';
 
 import {
   Table,
@@ -53,6 +54,7 @@ import {
  * Props:
  *   - columns: array of column definitions
  *   - data: array of row objects
+ *   - screenKey: key da tela para verificar permissões (edit, delete)
  *   - onDelete: callback when delete button is clicked
  *   - onCreate: callback when create button is clicked/opened
  *   - onSave: callback called with the new/updated row when form submits
@@ -68,13 +70,14 @@ import {
  *       converting referenced ids into display values.
  *   - headerActions: React node rendered in the header before the create
  *       button. Useful for passing a custom button/component (e.g. <AppUser />).
- *   - rowAction: optional function `(row)=>ReactNode` rendered alongside
+ *   - rowAction: optional function `(row, { hasPermission })=>ReactNode` rendered alongside
  *       the standard edit/delete buttons in each action cell. Can be used for
- *       per-row custom buttons.
+ *       per-row custom buttons. Receives hasPermission function for checking permissions.
  */
 export function PageTable({
   columns = [],
   data = [],
+  screenKey,
   onDelete = () => {},
   onCreate = () => {},
   onSave = () => {},
@@ -86,6 +89,12 @@ export function PageTable({
   headerActions,
   rowAction,
 }) {
+  const { canEdit, canDelete, hasPermission } = usePermission();
+
+  // Verifica permissões: se não tem screenKey, libera tudo
+  const allowEdit = !screenKey || canEdit(screenKey);
+  const allowDelete = !screenKey || canDelete(screenKey);
+
   const [open, setOpen] = React.useState(false);
   const [editingRow, setEditingRow] = React.useState(null);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
@@ -132,7 +141,7 @@ export function PageTable({
       <Card>
         <CardHeader className="flex items-center justify-end space-x-2">
           {headerActions}
-          {EditForm && (
+          {EditForm && allowEdit && (
             <div className="flex justify-end">
               <Button size="lg" onClick={handleCreate} disabled={formLoading}>
                 Cadastrar <Plus />{' '}
@@ -203,23 +212,31 @@ export function PageTable({
                       );
                     })}
                     <TableCell className="space-x-2 border px-4 py-2 text-center [[align=center]]:text-center [[align=right]]:text-right">
-                      {rowAction && rowAction(row)}
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label="Edit"
-                        onClick={() => handleEdit(row)}
-                      >
-                        <SquarePen />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        aria-label="Delete"
-                        onClick={() => handleDeleteTrigger(row)}
-                      >
-                        <Trash />
-                      </Button>
+                      {rowAction &&
+                        rowAction(row, {
+                          hasPermission: (perm) =>
+                            hasPermission(screenKey, perm),
+                        })}
+                      {allowEdit && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          aria-label="Edit"
+                          onClick={() => handleEdit(row)}
+                        >
+                          <SquarePen />
+                        </Button>
+                      )}
+                      {allowDelete && (
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          aria-label="Delete"
+                          onClick={() => handleDeleteTrigger(row)}
+                        >
+                          <Trash />
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

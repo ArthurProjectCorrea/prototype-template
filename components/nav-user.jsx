@@ -4,6 +4,7 @@ import * as React from 'react';
 import { ChevronsUpDown, LogOut, User } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { SettingsDialog } from '@/components/settings-dialog';
+import { getUser, logout } from '@/lib/auth';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -26,18 +27,15 @@ export function NavUser({ user: initialUser }) {
   const [user, setUser] = React.useState(initialUser || null);
   React.useEffect(() => {
     if (!initialUser) {
-      const stored = localStorage.getItem('user');
-      if (stored) setUser(JSON.parse(stored));
+      setUser(getUser());
     }
   }, [initialUser]);
   const { isMobile } = useSidebar();
 
   const [logoutLoading, setLogoutLoading] = React.useState(false);
-  const logout = () => {
+  const handleLogout = () => {
     setLogoutLoading(true);
-    localStorage.removeItem('user');
-    document.cookie = 'user=; Max-Age=0; path=/';
-    window.location.href = '/login';
+    logout();
   };
 
   const [settingsOpen, setSettingsOpen] = React.useState(false);
@@ -108,7 +106,7 @@ export function NavUser({ user: initialUser }) {
             <DropdownMenuGroup>
               <DropdownMenuItem
                 className="flex items-center gap-2"
-                onClick={logout}
+                onClick={handleLogout}
               >
                 <LogOut />
                 Sair

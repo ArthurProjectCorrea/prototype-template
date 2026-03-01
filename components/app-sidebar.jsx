@@ -29,6 +29,8 @@ const data = {
     {
       title: 'Dashboard',
       url: '/',
+      verify_permission: false,
+      key: 'dashboard',
       icon: LayoutDashboard,
     },
     {
@@ -39,14 +41,20 @@ const data = {
         {
           title: 'Usuários',
           url: '/config/users',
+          verify_permission: true,
+          key: 'users',
         },
         {
           title: 'Cargos',
           url: '/config/positions',
+          verify_permission: true,
+          key: 'positions',
         },
         {
           title: 'Departamentos',
           url: '/config/departments',
+          verify_permission: true,
+          key: 'departments',
         },
       ],
     },

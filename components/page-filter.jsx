@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ChevronDownIcon } from 'lucide-react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { usePermission } from '@/hooks/use-permission';
 
 /**
  * A generic filter bar that renders a row of controls based on a
@@ -30,6 +31,7 @@ import { Card, CardContent, CardFooter } from '@/components/ui/card';
  *   onSearch?: (values:object)=>void, // called when the search button is clicked
  *   onClear?: ()=>void,
  *   showExport?: boolean,
+ *   screenKey?: string,            // key da tela para verificar permissão de export
  *   onExport?: (format: 'csv' | 'pdf')=>void,
  *   className?:string
  * }} props
@@ -40,10 +42,15 @@ export function PageFilter({
   onSearch = () => {},
   onClear,
   showExport = false,
+  screenKey,
   onExport,
   className,
 }) {
   const [values, setValues] = React.useState(valuesProp);
+  const { canExport: checkExport } = usePermission();
+
+  // Verifica permissão de export: se não tem screenKey, libera
+  const canExport = !screenKey || checkExport(screenKey);
 
   React.useEffect(() => {
     setValues(valuesProp);
@@ -89,27 +96,33 @@ export function PageFilter({
         <div className="flex justify-end gap-2">
           {/* action buttons */}
 
-          {showExport && onExport && (
+          {showExport && (
             <ButtonGroup>
               {/* primary export action (CSV) */}
               <Button
                 variant="outline"
                 size="lg"
-                onClick={() => onExport('csv')}
+                onClick={() => onExport?.('csv')}
+                disabled={!canExport || !onExport}
               >
                 Exportar
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="lg" className="!pl-2">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="pl-2!"
+                    disabled={!canExport || !onExport}
+                  >
                     <ChevronDownIcon />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
-                  <DropdownMenuItem onClick={() => onExport('csv')}>
+                  <DropdownMenuItem onClick={() => onExport?.('csv')}>
                     CSV
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onExport('pdf')}>
+                  <DropdownMenuItem onClick={() => onExport?.('pdf')}>
                     PDF
                   </DropdownMenuItem>
                 </DropdownMenuContent>

@@ -1,11 +1,10 @@
 'use client';
 
 import * as React from 'react';
-
 import { PageHeader } from '@/components/page-header';
 import { PageTable } from '@/components/page-table';
 import { PageFilter } from '@/components/page-filter';
-import { UserForm } from '@/components/form/user-form';
+import { UserForm } from '@/components/forms/user-form';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -14,131 +13,26 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select';
-import { toast } from 'sonner';
+import { useCrud } from '@/hooks/use-crud';
 
-// fetch-based helpers for server-backed JSON
-async function fetchUsers() {
-  const res = await fetch('/api/users');
-  return res.json();
-}
-async function fetchPositions() {
-  const res = await fetch('/api/positions');
-  return res.json();
-}
-async function createUser(user) {
-  const res = await fetch('/api/users', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(user),
-  });
-  return res.json();
-}
-async function updateUser(user) {
-  const res = await fetch('/api/users', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(user),
-  });
-  return res.json();
-}
-async function deleteUser(id) {
-  const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || 'Falha ao excluir usuário');
-  }
-}
+const SCREEN_KEY = 'users';
 
 export default function UsersPage() {
-  const [users, setUsers] = React.useState([]);
-  const [positions, setPositions] = React.useState([]);
-  const [filters, setFilters] = React.useState({});
-
-  const positionMap = React.useMemo(
-    () => Object.fromEntries(positions.map((p) => [p.id, p.name])),
-    [positions]
-  );
-  const [page, setPage] = React.useState(1);
-  const pageSize = 5; // adjust as needed
-
-  React.useEffect(() => {
-    fetchUsers().then(setUsers);
-    fetchPositions().then(setPositions);
-  }, []);
-
-  const [saveLoading, setSaveLoading] = React.useState(false);
-
-  const handleSave = async (user) => {
-    setSaveLoading(true);
-    try {
-      if (user.id) {
-        const updated = await updateUser(user);
-        setUsers((u) => u.map((x) => (x.id === updated.id ? updated : x)));
-        toast.success('Usuário atualizado com sucesso');
-      } else {
-        const created = await createUser(user);
-        setUsers((u) => [...u, created]);
-        // server may generate a password for us
-        if (created.password) {
-          toast.success(
-            `Usuário criado com sucesso. Senha: ${created.password}`
-          );
-        } else {
-          toast.success('Usuário criado com sucesso');
-        }
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || 'Erro ao salvar usuário.');
-      throw err;
-    } finally {
-      setSaveLoading(false);
-    }
-  };
-
-  const handleDelete = async (user) => {
-    try {
-      await deleteUser(user.id);
-      setUsers((u) => u.filter((x) => x.id !== user.id));
-      toast.success('Usuário excluído com sucesso');
-    } catch (err) {
-      toast.error(err.message || 'Não foi possível excluir o usuário.');
-    }
-  };
-
-  const handleCreate = () => {
-    // optional: any external state before dialog open
-  };
-
-  // apply filters before pagination
-  const filteredUsers = users.filter((u) => {
-    if (
-      filters.name &&
-      !u.name.toLowerCase().includes(filters.name.toLowerCase())
-    )
-      return false;
-    if (
-      filters.email &&
-      !u.email.toLowerCase().includes(filters.email.toLowerCase())
-    )
-      return false;
-    if (
-      filters.position_id &&
-      String(u.position_id) !== String(filters.position_id)
-    )
-      return false;
-    return true;
+  const crud = useCrud({
+    endpoint: '/api/users',
+    pageSize: 10,
+    relations: [
+      { key: 'positions', endpoint: '/api/positions', labelKey: 'name' },
+    ],
+    messages: {
+      createSuccess: 'Usuário criado com sucesso',
+      updateSuccess: 'Usuário atualizado com sucesso',
+      deleteSuccess: 'Usuário excluído com sucesso',
+      createError: 'Erro ao criar usuário',
+      updateError: 'Erro ao atualizar usuário',
+      deleteError: 'Erro ao excluir usuário',
+    },
   });
-
-  const pagedUsers = filteredUsers.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
-
-  // whenever filters change we should go back to first page
-  React.useEffect(() => {
-    setPage(1);
-  }, [filters]);
 
   return (
     <div className="space-y-2 p-2">
@@ -152,17 +46,22 @@ export default function UsersPage() {
       />
 
       <PageFilter
-        values={filters}
+        screenKey={SCREEN_KEY}
+        values={crud.filters}
         filters={[
           {
             key: 'name',
             label: 'Nome',
-            component: (props) => <Input {...props} />,
+            component: (props) => (
+              <Input {...props} placeholder="Buscar por nome..." />
+            ),
           },
           {
             key: 'email',
             label: 'Email',
-            component: (props) => <Input {...props} />,
+            component: (props) => (
+              <Input {...props} placeholder="Buscar por email..." />
+            ),
           },
           {
             key: 'position_id',
@@ -173,7 +72,7 @@ export default function UsersPage() {
                   <SelectValue placeholder="-- selecione --" />
                 </SelectTrigger>
                 <SelectContent>
-                  {positions.map((p) => (
+                  {(crud.relatedData.positions || []).map((p) => (
                     <SelectItem key={p.id} value={String(p.id)}>
                       {p.name}
                     </SelectItem>
@@ -183,63 +82,36 @@ export default function UsersPage() {
             ),
           },
         ]}
-        onSearch={setFilters}
-        onClear={() => setFilters({})}
-        showExport={false}
-        onExport={(format) => {
-          // simple exporter switch, CSV implemented; PDF could be added later
-          if (format === 'csv') {
-            const csv = filteredUsers
-              .map((u) => `${u.id},${u.name},${u.email}`)
-              .join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'users.csv';
-            a.click();
-            URL.revokeObjectURL(url);
-          } else if (format === 'pdf') {
-            // stub PDF export - same data for now
-            const csv = filteredUsers
-              .map((u) => `${u.id},${u.name},${u.email}`)
-              .join('\n');
-            const blob = new Blob([csv], { type: 'application/pdf' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'users.pdf';
-            a.click();
-            URL.revokeObjectURL(url);
-          }
-        }}
+        onSearch={crud.setFilters}
+        onClear={crud.clearFilters}
       />
+
       <PageTable
+        screenKey={SCREEN_KEY}
         columns={[
           { key: 'name', label: 'Nome' },
           { key: 'email', label: 'Email' },
           {
             key: 'position_id',
             label: 'Cargo',
-            render: (val) => positionMap[val] || '',
+            render: (val) => crud.lookupMaps.positions[val] || '-',
           },
           { key: 'created_at', label: 'Criado em', type: 'date' },
           { key: 'updated_at', label: 'Atualizado em', type: 'date' },
         ]}
-        data={pagedUsers}
-        refs={{ position_id: positionMap }}
-        onCreate={handleCreate}
-        onDelete={handleDelete}
-        onSave={handleSave}
-        formLoading={saveLoading}
+        data={crud.pagedData}
+        refs={{ position_id: crud.lookupMaps.positions }}
+        onSave={crud.handleSave}
+        onDelete={crud.handleDelete}
+        formLoading={crud.loading}
+        pagination={crud.pagination}
         EditForm={(props) => (
-          <UserForm {...props} positions={positions} loading={saveLoading} />
+          <UserForm
+            {...props}
+            positions={crud.relatedData.positions || []}
+            loading={crud.loading}
+          />
         )}
-        pagination={{
-          page,
-          totalPages: Math.ceil(filteredUsers.length / pageSize) || 1,
-          onPageChange: setPage,
-        }}
       />
     </div>
   );
