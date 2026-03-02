@@ -47,9 +47,73 @@
       {
         "screen_key": "departments",
         "permission_key": "delete"
+      },
+      {
+        "screen_key": "ufs",
+        "permission_key": "view"
+      },
+      {
+        "screen_key": "ufs",
+        "permission_key": "edit"
+      },
+      {
+        "screen_key": "ufs",
+        "permission_key": "delete"
+      },
+      {
+        "screen_key": "cities",
+        "permission_key": "view"
+      },
+      {
+        "screen_key": "cities",
+        "permission_key": "edit"
+      },
+      {
+        "screen_key": "cities",
+        "permission_key": "delete"
+      },
+      {
+        "screen_key": "neighborhoods",
+        "permission_key": "view"
+      },
+      {
+        "screen_key": "neighborhoods",
+        "permission_key": "edit"
+      },
+      {
+        "screen_key": "neighborhoods",
+        "permission_key": "delete"
+      },
+      {
+        "screen_key": "local_leaders",
+        "permission_key": "view"
+      },
+      {
+        "screen_key": "local_leaders",
+        "permission_key": "edit"
+      },
+      {
+        "screen_key": "local_leaders",
+        "permission_key": "delete"
+      },
+      {
+        "screen_key": "goals",
+        "permission_key": "view"
+      },
+      {
+        "screen_key": "goals",
+        "permission_key": "edit"
+      },
+      {
+        "screen_key": "goals",
+        "permission_key": "delete"
+      },
+      {
+        "screen_key": "goals",
+        "permission_key": "export"
       }
     ],
     "created_at": "2026-02-28T14:32:57.629Z",
-    "updated_at": "2026-03-01T18:51:30.081Z"
+    "updated_at": "2026-03-02T00:47:47.279Z"
   }
 ]

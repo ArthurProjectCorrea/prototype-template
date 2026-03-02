@@ -8,6 +8,9 @@ import {
   Send,
   SquareTerminal,
   LayoutDashboard,
+  FilePen,
+  Goal,
+  Landmark,
 } from 'lucide-react';
 
 import { NavMain } from '@/components/nav-main';
@@ -22,7 +25,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import Link from 'next/link';
 
 const data = {
   navMain: [
@@ -36,7 +38,7 @@ const data = {
     {
       title: 'Configurações',
       icon: SquareTerminal,
-      isActive: true,
+      isActive: false,
       items: [
         {
           title: 'Usuários',
@@ -106,7 +108,7 @@ export function AppSidebar({ ...props }) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg">
               <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg ">
-                <Command className="size-4" />
+                <Landmark className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">Dainai Corp</span>

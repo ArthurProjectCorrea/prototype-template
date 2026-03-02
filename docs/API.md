@@ -514,7 +514,7 @@ export async function DELETE(req) {
 
 ## Boas Práticas
 
-### ✅ Faça
+### [CheckCircle2] Faça
 
 - Use `db.isReferenced()` antes de deletar registros com dependências
 - Mantenha nomes de tabelas em inglês e no plural (users, products, categories)
@@ -522,7 +522,7 @@ export async function DELETE(req) {
 - Retorne mensagens de erro em português para o usuário final
 - Valide campos obrigatórios antes de criar/atualizar
 
-### ❌ Evite
+### [XCircle] Evite
 
 - Não modifique `id` ou `created_at` em atualizações
 - Não acesse arquivos JSON diretamente, use `lib/db.js`

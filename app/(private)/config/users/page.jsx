@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import { PageHeader } from '@/components/page-header';
-import { PageTable } from '@/components/page-table';
-import { PageFilter } from '@/components/page-filter';
+import { DataTable } from '@/components/data-table';
 import { UserForm } from '@/components/forms/user-form';
 import { Input } from '@/components/ui/input';
 import {
@@ -45,9 +44,19 @@ export default function UsersPage() {
         ]}
       />
 
-      <PageFilter
+      <DataTable
         screenKey={SCREEN_KEY}
-        values={crud.filters}
+        columns={[
+          { key: 'name', label: 'Nome' },
+          { key: 'email', label: 'Email' },
+          {
+            key: 'position_id',
+            label: 'Cargo',
+            render: (val) => crud.lookupMaps.positions[val] || '-',
+          },
+          { key: 'created_at', label: 'Criado em', type: 'date' },
+          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
+        ]}
         filters={[
           {
             key: 'name',
@@ -82,29 +91,11 @@ export default function UsersPage() {
             ),
           },
         ]}
-        onSearch={crud.setFilters}
-        onClear={crud.clearFilters}
-      />
-
-      <PageTable
-        screenKey={SCREEN_KEY}
-        columns={[
-          { key: 'name', label: 'Nome' },
-          { key: 'email', label: 'Email' },
-          {
-            key: 'position_id',
-            label: 'Cargo',
-            render: (val) => crud.lookupMaps.positions[val] || '-',
-          },
-          { key: 'created_at', label: 'Criado em', type: 'date' },
-          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
-        ]}
-        data={crud.pagedData}
+        data={crud.data}
         refs={{ position_id: crud.lookupMaps.positions }}
         onSave={crud.handleSave}
         onDelete={crud.handleDelete}
         formLoading={crud.loading}
-        pagination={crud.pagination}
         EditForm={(props) => (
           <UserForm
             {...props}

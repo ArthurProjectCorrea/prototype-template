@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import { PageHeader } from '@/components/page-header';
-import { PageTable } from '@/components/page-table';
-import { PageFilter } from '@/components/page-filter';
+import { DataTable } from '@/components/data-table';
 import { DepartmentForm } from '@/components/forms/department-form';
 import { Input } from '@/components/ui/input';
 import { useCrud } from '@/hooks/use-crud';
@@ -35,9 +34,13 @@ export default function DepartmentsPage() {
         ]}
       />
 
-      <PageFilter
+      <DataTable
         screenKey={SCREEN_KEY}
-        values={crud.filters}
+        columns={[
+          { key: 'name', label: 'Nome' },
+          { key: 'created_at', label: 'Criado em', type: 'date' },
+          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
+        ]}
         filters={[
           {
             key: 'name',
@@ -47,22 +50,10 @@ export default function DepartmentsPage() {
             ),
           },
         ]}
-        onSearch={crud.setFilters}
-        onClear={crud.clearFilters}
-      />
-
-      <PageTable
-        screenKey={SCREEN_KEY}
-        columns={[
-          { key: 'name', label: 'Nome' },
-          { key: 'created_at', label: 'Criado em', type: 'date' },
-          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
-        ]}
-        data={crud.pagedData}
+        data={crud.data}
         onSave={crud.handleSave}
         onDelete={crud.handleDelete}
         formLoading={crud.loading}
-        pagination={crud.pagination}
         EditForm={(props) => (
           <DepartmentForm {...props} loading={crud.loading} />
         )}

@@ -26,5 +26,40 @@
     "key": "departments",
     "created_at": "2026-01-01T00:00:00.000Z",
     "updated_at": "2026-01-01T00:00:00.000Z"
+  },
+  {
+    "id": 5,
+    "name": "Cadastro de UFs",
+    "key": "ufs",
+    "created_at": "2026-03-01T00:00:00.000Z",
+    "updated_at": "2026-03-01T00:00:00.000Z"
+  },
+  {
+    "id": 6,
+    "name": "Cadastro de Cidades",
+    "key": "cities",
+    "created_at": "2026-03-01T00:00:00.000Z",
+    "updated_at": "2026-03-01T00:00:00.000Z"
+  },
+  {
+    "id": 7,
+    "name": "Cadastro de Bairros",
+    "key": "neighborhoods",
+    "created_at": "2026-03-01T00:00:00.000Z",
+    "updated_at": "2026-03-01T00:00:00.000Z"
+  },
+  {
+    "id": 8,
+    "name": "Cadastro de Líderes Locais",
+    "key": "local_leaders",
+    "created_at": "2026-03-01T00:00:00.000Z",
+    "updated_at": "2026-03-01T00:00:00.000Z"
+  },
+  {
+    "id": 9,
+    "name": "Cadastro de Metas",
+    "key": "goals",
+    "created_at": "2026-03-01T00:00:00.000Z",
+    "updated_at": "2026-03-01T00:00:00.000Z"
   }
 ]

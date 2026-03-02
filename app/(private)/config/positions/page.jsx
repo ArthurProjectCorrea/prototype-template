@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import { PageHeader } from '@/components/page-header';
-import { PageTable } from '@/components/page-table';
-import { PageFilter } from '@/components/page-filter';
+import { DataTable } from '@/components/data-table';
 import { PositionForm } from '@/components/forms/position-form';
 import { Input } from '@/components/ui/input';
 import {
@@ -29,49 +28,12 @@ export default function PositionsPage() {
       .catch(console.error);
   }, []);
 
-  // Filtro customizado para lidar com departments (array) e permissions
-  const customFilter = React.useCallback(
-    (item, filters) => {
-      // Filtro por nome
-      if (
-        filters.name &&
-        !item.name.toLowerCase().includes(filters.name.toLowerCase())
-      ) {
-        return false;
-      }
-
-      // Filtro por departamento
-      if (filters.department_id) {
-        const depId = Number(filters.department_id);
-        const deps = Array.isArray(item.departments)
-          ? item.departments
-          : [item.departments];
-        if (!deps.includes(depId)) return false;
-      }
-
-      // Filtro por tela (permissões) - usando screen_key
-      if (filters.screen) {
-        const screenKey = screens.find(
-          (s) => String(s.id) === String(filters.screen)
-        )?.key;
-        const perms = Array.isArray(item.permissions) ? item.permissions : [];
-        if (!perms.some((perm) => perm.screen_key === screenKey)) {
-          return false;
-        }
-      }
-
-      return true;
-    },
-    [screens]
-  );
-
   const crud = useCrud({
     endpoint: '/api/positions',
     pageSize: 10,
     relations: [
       { key: 'departments', endpoint: '/api/departments', labelKey: 'name' },
     ],
-    filterFn: customFilter,
     messages: {
       createSuccess: 'Cargo criado com sucesso',
       updateSuccess: 'Cargo atualizado com sucesso',
@@ -108,9 +70,26 @@ export default function PositionsPage() {
         ]}
       />
 
-      <PageFilter
+      <DataTable
         screenKey={SCREEN_KEY}
-        values={crud.filters}
+        columns={[
+          { key: 'name', label: 'Nome' },
+          {
+            key: 'departments',
+            label: 'Departamentos',
+            render: (val) => {
+              const list = Array.isArray(val) ? val : [val];
+              return (
+                list
+                  .map((id) => crud.lookupMaps.departments[id])
+                  .filter(Boolean)
+                  .join(', ') || '-'
+              );
+            },
+          },
+          { key: 'created_at', label: 'Criado em', type: 'date' },
+          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
+        ]}
         filters={[
           {
             key: 'name',
@@ -137,54 +116,11 @@ export default function PositionsPage() {
               </Select>
             ),
           },
-          {
-            key: 'screen',
-            label: 'Tela',
-            component: (props) => (
-              <Select {...props} className="w-full">
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="-- selecione --" />
-                </SelectTrigger>
-                <SelectContent>
-                  {screens.map((s) => (
-                    <SelectItem key={s.id} value={String(s.id)}>
-                      {s.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ),
-          },
         ]}
-        onSearch={crud.setFilters}
-        onClear={crud.clearFilters}
-      />
-
-      <PageTable
-        screenKey={SCREEN_KEY}
-        columns={[
-          { key: 'name', label: 'Nome' },
-          {
-            key: 'departments',
-            label: 'Departamentos',
-            render: (val) => {
-              const list = Array.isArray(val) ? val : [val];
-              return (
-                list
-                  .map((id) => crud.lookupMaps.departments[id])
-                  .filter(Boolean)
-                  .join(', ') || '-'
-              );
-            },
-          },
-          { key: 'created_at', label: 'Criado em', type: 'date' },
-          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
-        ]}
-        data={crud.pagedData}
+        data={crud.data}
         onSave={handleSave}
         onDelete={crud.handleDelete}
         formLoading={crud.loading}
-        pagination={crud.pagination}
         EditForm={(props) => (
           <PositionForm
             {...props}

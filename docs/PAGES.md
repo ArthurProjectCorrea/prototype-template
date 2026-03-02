@@ -732,7 +732,7 @@ export default function SettingsPage() {
 
 ## Boas Práticas
 
-### ✅ Faça
+### [CheckCircle2] Faça
 
 - Use `useCrud` para páginas CRUD padrão
 - Use `useApi` para operações específicas
@@ -740,7 +740,7 @@ export default function SettingsPage() {
 - Use `lookupMaps` para exibir nomes de relacionamentos
 - Mantenha formulários em arquivos separados (`components/form/`)
 
-### ❌ Evite
+### [XCircle] Evite
 
 - Não faça fetch direto com `fetch()` em páginas CRUD
 - Não duplique lógica de filtro/paginação
