@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 
-export function middleware(req) {
+// Next.js 14+ uses a `proxy` function instead of `middleware`.  Exporting a
+// named `proxy` (or default) ensures Turbopack builds correctly.
+export function proxy(req) {
   const url = req.nextUrl.clone();
   const { pathname } = url;
   // only protect paths under /(private). anything outside that (including
