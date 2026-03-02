@@ -135,11 +135,21 @@ export function DataTable({
     canDelete,
     hasPermission,
     canExport: checkExport,
+    ready: permissionsReady,
   } = usePermission();
 
   const allowEdit = !screenKey || canEdit(screenKey);
   const allowDelete = !screenKey || canDelete(screenKey);
   const canExport = !screenKey || checkExport(screenKey);
+
+  // Determine whether to show the actions column.
+  // Show if: no screenKey (backwards compatible), or permissions haven't loaded yet (avoid flicker),
+  // or user has at least one of: edit permission, delete permission, or a custom rowAction.
+  const showActions = React.useMemo(() => {
+    if (!screenKey) return true;
+    if (!permissionsReady) return true;
+    return allowEdit || allowDelete || typeof rowAction === 'function';
+  }, [screenKey, permissionsReady, allowEdit, allowDelete, rowAction]);
 
   // Detect mobile for responsive columns
   const isMobile = useIsMobile();
@@ -508,9 +518,11 @@ export function DataTable({
                           {col.label}
                         </TableHead>
                       ))}
-                    <TableHead className="border px-2 sm:px-4 py-2 text-center font-bold">
-                      Ações
-                    </TableHead>
+                    {showActions && (
+                      <TableHead className="border px-2 sm:px-4 py-2 text-center font-bold">
+                        Ações
+                      </TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -519,7 +531,7 @@ export function DataTable({
                       <TableCell
                         colSpan={
                           visibleColumns.filter((c) => !columnVisibility[c.key])
-                            .length + 1
+                            .length + (showActions ? 1 : 0)
                         }
                         className="text-center py-4"
                       >
@@ -568,33 +580,35 @@ export function DataTable({
                               </TableCell>
                             );
                           })}
-                        <TableCell className="space-x-1 sm:space-x-2 border px-2 sm:px-4 py-2 text-center whitespace-nowrap">
-                          {rowAction &&
-                            rowAction(row, {
-                              hasPermission: (perm) =>
-                                hasPermission(screenKey, perm),
-                            })}
-                          {allowEdit && (
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              aria-label="Edit"
-                              onClick={() => handleEdit(row)}
-                            >
-                              <SquarePen />
-                            </Button>
-                          )}
-                          {allowDelete && (
-                            <Button
-                              variant="destructive"
-                              size="icon"
-                              aria-label="Delete"
-                              onClick={() => handleDeleteTrigger(row)}
-                            >
-                              <Trash />
-                            </Button>
-                          )}
-                        </TableCell>
+                        {showActions && (
+                          <TableCell className="space-x-1 sm:space-x-2 border px-2 sm:px-4 py-2 text-center whitespace-nowrap">
+                            {rowAction &&
+                              rowAction(row, {
+                                hasPermission: (perm) =>
+                                  hasPermission(screenKey, perm),
+                              })}
+                            {allowEdit && (
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                aria-label="Edit"
+                                onClick={() => handleEdit(row)}
+                              >
+                                <SquarePen />
+                              </Button>
+                            )}
+                            {allowDelete && (
+                              <Button
+                                variant="destructive"
+                                size="icon"
+                                aria-label="Delete"
+                                onClick={() => handleDeleteTrigger(row)}
+                              >
+                                <Trash />
+                              </Button>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
