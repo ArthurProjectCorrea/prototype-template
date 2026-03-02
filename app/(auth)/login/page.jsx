@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { LoginForm } from '@/components/forms/login-form';
 import {
@@ -12,23 +12,70 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
-  const { isAuthenticated, ready, loading, login } = useAuth();
+  const searchParams = useSearchParams();
+  const { isAuthenticated, ready, loading, login, user } = useAuth();
+  const [shouldRedirect, setShouldRedirect] = useState(false);
+  const hasRedirected = useRef(false);
 
-  // Redireciona se já estiver logado
+  // Log para debugging
   useEffect(() => {
-    if (ready && isAuthenticated) {
-      router.push('/');
-    }
-  }, [ready, isAuthenticated, router]);
+    console.log('[LoginPage] State:', {
+      ready,
+      isAuthenticated,
+      loading,
+      user: !!user,
+      hasRedirected: hasRedirected.current,
+    });
+  }, [ready, isAuthenticated, loading, user]);
 
-  const handleSubmit = ({ email, password }) => {
-    login(email, password);
+  // Redireciona se já estiver logado (apenas uma vez e somente após ready)
+  useEffect(() => {
+    // Evita redirects múltiplos
+    if (hasRedirected.current) return;
+
+    // Só redireciona quando ready === true E user está realmente autenticado
+    // E aguarda 500ms para garantir que o estado estabilizou
+    if (ready && isAuthenticated && !loading) {
+      console.log('[LoginPage] User is authenticated, will redirect...');
+      setShouldRedirect(true);
+    }
+  }, [ready, isAuthenticated, loading]);
+
+  // Executa o redirect após delay para evitar race conditions
+  useEffect(() => {
+    if (!shouldRedirect || hasRedirected.current) return;
+
+    const timer = setTimeout(() => {
+      if (hasRedirected.current) return;
+      hasRedirected.current = true;
+      console.log('[LoginPage] Redirecting now...');
+      const redirect = searchParams.get('redirect');
+      router.push(redirect || '/');
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [shouldRedirect, searchParams, router]);
+
+  const handleSubmit = async ({ email, password }) => {
+    const result = await login(email, password);
+    if (result.success) {
+      // Login bem sucedido - o onAuthStateChange vai atualizar o estado
+      // e o useEffect acima vai fazer o redirect
+      console.log('[LoginPage] Login success, waiting for auth state change');
+    }
   };
 
   // Aguarda verificar autenticação
-  if (!ready || isAuthenticated) {
+  if (!ready) {
+    console.log('[LoginPage] Waiting for auth to be ready...');
+    return null;
+  }
+
+  // Se já está autenticado ou vai redirecionar, não mostra o form
+  if (isAuthenticated || shouldRedirect) {
+    console.log('[LoginPage] Already authenticated or redirecting...');
     return null;
   }
 
@@ -48,5 +95,13 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   );
 }

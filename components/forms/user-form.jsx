@@ -49,8 +49,8 @@ export function UserForm({
       const currentPosition = propPositions.find(
         (p) => String(p.id) === String(safeRow.position_id)
       );
-      if (currentPosition?.departments) {
-        return String(currentPosition.departments);
+      if (currentPosition?.department_id) {
+        return String(currentPosition.department_id);
       }
     }
     return '';
@@ -65,8 +65,8 @@ export function UserForm({
       const currentPosition = positions.find(
         (p) => String(p.id) === String(row.position_id)
       );
-      if (currentPosition?.departments) {
-        setDepartmentId(String(currentPosition.departments));
+      if (currentPosition?.department_id) {
+        setDepartmentId(String(currentPosition.department_id));
       }
     }
   }, [row?.position_id, positions, departmentId]);
@@ -75,7 +75,7 @@ export function UserForm({
   const filteredPositions = React.useMemo(() => {
     if (!departmentId) return [];
     return positions.filter(
-      (p) => String(p.departments) === String(departmentId)
+      (p) => String(p.department_id) === String(departmentId)
     );
   }, [positions, departmentId]);
 
@@ -85,7 +85,7 @@ export function UserForm({
     const positionBelongsToDept = positions.find(
       (p) =>
         String(p.id) === String(positionId) &&
-        String(p.departments) === String(value)
+        String(p.department_id) === String(value)
     );
     if (!positionBelongsToDept) {
       setPositionId('');
@@ -106,7 +106,7 @@ export function UserForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <FieldGroup>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field>
             <FieldLabel htmlFor="name">Nome</FieldLabel>
             <Input

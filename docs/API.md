@@ -1,70 +1,52 @@
 # Padrão de API - Prototype Template
 
-Este documento define o padrão de construção de APIs para o projeto prototype-template. Siga estas diretrizes para manter consistência e facilitar o desenvolvimento.
+Este documento define o padrão de construção de APIs para o projeto prototype-template usando **Supabase**.
 
 ## Índice
 
 1. [Estrutura de Dados](#estrutura-de-dados)
 2. [Utilitário de Banco de Dados](#utilitário-de-banco-de-dados)
-3. [Padrão de API](#padrão-de-api)
-4. [Operações CRUD](#operações-crud)
-5. [Relações entre Tabelas](#relações-entre-tabelas)
-6. [Exemplos Práticos](#exemplos-práticos)
-7. [Criando uma Nova API](#criando-uma-nova-api)
+3. [Padrão de API CRUD](#padrão-de-api-crud)
+4. [Handler de Erros](#handler-de-erros)
+5. [APIs Especiais](#apis-especiais)
+6. [Criando uma Nova API](#criando-uma-nova-api)
 
 ---
 
 ## Estrutura de Dados
 
-### Campos Obrigatórios
+### Campos Padrão (Obrigatórios)
 
-Toda tabela JSON **DEVE** conter os seguintes campos:
+Toda tabela Supabase **DEVE** conter os seguintes campos:
 
-| Campo        | Tipo     | Descrição                             |
-| ------------ | -------- | ------------------------------------- |
-| `id`         | `number` | Identificador único auto-incrementado |
-| `created_at` | `string` | Data de criação (ISO 8601)            |
-| `updated_at` | `string` | Data da última atualização (ISO 8601) |
-
-### Exemplo de Registro
-
-```json
-{
-  "id": 1,
-  "name": "Exemplo",
-  "created_at": "2026-03-01T10:00:00.000Z",
-  "updated_at": "2026-03-01T10:00:00.000Z"
-}
-```
+| Campo        | Tipo                       | Descrição                  |
+| ------------ | -------------------------- | -------------------------- |
+| `id`         | `BIGSERIAL` ou `UUID`      | Identificador único        |
+| `created_at` | `TIMESTAMP WITH TIME ZONE` | Data de criação            |
+| `updated_at` | `TIMESTAMP WITH TIME ZONE` | Data da última atualização |
 
 ### Localização dos Arquivos
 
-- **Dados**: `database/*.json`
-- **APIs**: `app/api/[recurso]/route.js`
-- **Utilitários**: `lib/db.js`
+```
+app/api/[recurso]/route.js   → API Route Handler
+lib/supabase-db.js           → Utilitários CRUD
+lib/supabase/server.js       → Cliente Supabase (Server)
+lib/error-handler.js         → Handler de erros centralizado
+```
 
 ---
 
 ## Utilitário de Banco de Dados
 
-O arquivo `lib/db.js` centraliza todas as operações de banco de dados.
+O arquivo `lib/supabase-db.js` centraliza todas as operações de banco de dados.
 
 ### Importação
 
 ```javascript
-import * as db from '@/lib/db';
+import * as db from '@/lib/supabase-db';
 ```
 
 ### Funções Disponíveis
-
-#### Operações Básicas
-
-| Função                  | Descrição                           |
-| ----------------------- | ----------------------------------- |
-| `db.read(table)`        | Lê todos os registros de uma tabela |
-| `db.write(table, data)` | Escreve dados em uma tabela         |
-| `db.getNextId(data)`    | Retorna o próximo ID disponível     |
-| `db.timestamp()`        | Retorna timestamp atual ISO         |
 
 #### Operações CRUD
 
@@ -72,24 +54,10 @@ import * as db from '@/lib/db';
 | -------------------------------- | -------------------------------------- |
 | `db.getAll(table, options)`      | Lista registros com filtros e relações |
 | `db.getById(table, id, options)` | Busca registro por ID                  |
-| `db.create(table, record)`       | Cria novo registro                     |
+| `db.create(table, data)`         | Cria novo registro                     |
 | `db.update(table, id, updates)`  | Atualiza registro existente            |
 | `db.remove(table, id)`           | Remove registro por ID                 |
-
-#### Operações em Lote
-
-| Função                                 | Descrição                    |
-| -------------------------------------- | ---------------------------- |
-| `db.createMany(table, records)`        | Cria múltiplos registros     |
-| `db.updateMany(table, where, updates)` | Atualiza múltiplos registros |
-| `db.removeMany(table, where)`          | Remove múltiplos registros   |
-
-#### Helpers de Relação
-
-| Função                               | Descrição                             |
-| ------------------------------------ | ------------------------------------- |
-| `db.isReferenced(table, field, id)`  | Verifica se ID é referenciado         |
-| `db.getReferences(table, field, id)` | Busca registros que referenciam um ID |
+| `db.createMany(table, records)`  | Cria múltiplos registros               |
 
 #### Helpers de Resposta
 
@@ -97,23 +65,23 @@ import * as db from '@/lib/db';
 | ----------------------------------- | ------------------------- |
 | `db.jsonResponse(data, status)`     | Resposta JSON             |
 | `db.errorResponse(message, status)` | Resposta de erro          |
-| `db.noContentResponse()`            | Resposta 204 No Content   |
 | `db.parseQueryParams(req)`          | Parse de query parameters |
 
 ---
 
-## Padrão de API
+## Padrão de API CRUD
 
-### Estrutura Básica
+### Template Básico
 
 ```javascript
-import * as db from '@/lib/db';
+import * as db from '@/lib/supabase-db';
+import { handleSupabaseError } from '@/lib/error-handler';
 
-const TABLE = 'nome_da_tabela';
+const TABLE = 'nome_tabela';
 
 // Definição de relações (opcional)
 const RELATIONS = {
-  campo: { table: 'tabela_relacionada', foreignKey: 'campo_id', type: 'one' },
+  campo: { table: 'tabela_rel', foreignKey: 'campo_id', type: 'one' },
 };
 
 export async function GET(req) {
@@ -137,11 +105,9 @@ export async function DELETE(req) {
 | `GET`    | Listar/Buscar | 200 + dados               |
 | `POST`   | Criar         | 201 + registro criado     |
 | `PUT`    | Atualizar     | 200 + registro atualizado |
-| `DELETE` | Remover       | 204 No Content            |
+| `DELETE` | Remover       | 200 + { success: true }   |
 
 ---
-
-## Operações CRUD
 
 ### GET - Listar e Buscar
 
@@ -150,24 +116,29 @@ export async function GET(req) {
   const params = db.parseQueryParams(req);
   const { id, include, ...where } = params;
 
-  // Buscar por ID
-  if (id) {
-    const record = await db.getById(TABLE, id, {
+  try {
+    // Buscar por ID
+    if (id) {
+      const record = await db.getById(TABLE, id, {
+        include: include ? include.split(',') : [],
+        relations: RELATIONS,
+      });
+      if (!record) return db.errorResponse('Não encontrado', 404);
+      return db.jsonResponse(record);
+    }
+
+    // Listar todos (com filtros opcionais)
+    const data = await db.getAll(TABLE, {
+      where: Object.keys(where).length ? where : undefined,
       include: include ? include.split(',') : [],
       relations: RELATIONS,
     });
-    if (!record) return db.errorResponse('Não encontrado', 404);
-    return db.jsonResponse(record);
+
+    return db.jsonResponse(data);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'tabela.getAll');
+    return db.errorResponse(errorMsg, 500);
   }
-
-  // Listar com filtros
-  const data = await db.getAll(TABLE, {
-    where: Object.keys(where).length ? where : undefined,
-    include: include ? include.split(',') : [],
-    relations: RELATIONS,
-  });
-
-  return db.jsonResponse(data);
 }
 ```
 
@@ -175,17 +146,19 @@ export async function GET(req) {
 
 ```bash
 # Listar todos
-GET /api/users
+GET /api/departments
 
 # Buscar por ID
-GET /api/users?id=1
+GET /api/departments?id=1
 
 # Filtrar por campo
-GET /api/users?position_id=2
+GET /api/positions?department_id=2
 
 # Incluir relações
-GET /api/users?include=position
+GET /api/positions?include=department
 ```
+
+---
 
 ### POST - Criar
 
@@ -193,27 +166,22 @@ GET /api/users?include=position
 export async function POST(req) {
   const body = await req.json();
 
-  // Validações específicas (opcional)
+  // Validações (opcional)
   if (!body.name) {
     return db.errorResponse('Nome é obrigatório', 400);
   }
 
-  const record = await db.create(TABLE, body);
-  return db.jsonResponse(record, 201);
+  try {
+    const record = await db.create(TABLE, body);
+    return db.jsonResponse(record, 201);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'tabela.create');
+    return db.errorResponse(errorMsg, 500);
+  }
 }
 ```
 
-**Exemplo de uso:**
-
-```bash
-POST /api/users
-Content-Type: application/json
-
-{
-  "name": "João",
-  "email": "joao@example.com"
-}
-```
+---
 
 ### PUT - Atualizar
 
@@ -224,24 +192,18 @@ export async function PUT(req) {
 
   if (!id) return db.errorResponse('ID é obrigatório', 400);
 
-  const record = await db.update(TABLE, id, updates);
-  if (!record) return db.errorResponse('Não encontrado', 404);
-
-  return db.jsonResponse(record);
+  try {
+    const record = await db.update(TABLE, id, updates);
+    if (!record) return db.errorResponse('Não encontrado', 404);
+    return db.jsonResponse(record);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'tabela.update');
+    return db.errorResponse(errorMsg, 500);
+  }
 }
 ```
 
-**Exemplo de uso:**
-
-```bash
-PUT /api/users
-Content-Type: application/json
-
-{
-  "id": 1,
-  "name": "João Silva"
-}
-```
+---
 
 ### DELETE - Remover
 
@@ -251,183 +213,77 @@ export async function DELETE(req) {
 
   if (!id) return db.errorResponse('ID é obrigatório', 400);
 
-  // Verificar dependências (opcional)
-  const hasReferences = await db.isReferenced('orders', 'user_id', id);
-  if (hasReferences) {
-    return db.errorResponse(
-      'Não é possível excluir - existem registros vinculados',
-      400
-    );
+  try {
+    await db.remove(TABLE, id);
+    return db.jsonResponse({ success: true });
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'tabela.delete');
+    return db.errorResponse(errorMsg, 500);
   }
-
-  const deleted = await db.remove(TABLE, id);
-  if (!deleted) return db.errorResponse('Não encontrado', 404);
-
-  return db.noContentResponse();
-}
-```
-
-**Exemplo de uso:**
-
-```bash
-DELETE /api/users?id=1
-```
-
----
-
-## Relações entre Tabelas
-
-### Tipos de Relação
-
-| Tipo      | Descrição            | Exemplo               |
-| --------- | -------------------- | --------------------- |
-| `one`     | Um-para-um           | Usuário → Cargo       |
-| `many`    | Um-para-muitos (IDs) | Cargo → Departamentos |
-| `reverse` | Relação reversa      | Departamento ← Cargos |
-
-### Definindo Relações
-
-```javascript
-const RELATIONS = {
-  // Um usuário TEM UM cargo (campo position_id → tabela positions)
-  position: {
-    table: 'positions',
-    foreignKey: 'position_id',
-    type: 'one',
-  },
-
-  // Um cargo PERTENCE A VÁRIOS departamentos (campo departments → tabela departments)
-  departments: {
-    table: 'departments',
-    foreignKey: 'departments',
-    type: 'many',
-  },
-
-  // Um departamento TEM VÁRIOS cargos (relação reversa)
-  positions: {
-    table: 'positions',
-    referenceKey: 'departments',
-    type: 'reverse',
-  },
-};
-```
-
-### Usando Relações nas Consultas
-
-```javascript
-// Buscar usuário com cargo incluído
-const user = await db.getById('users', 1, {
-  include: ['position'],
-  relations: RELATIONS,
-});
-
-// Resultado:
-{
-  "id": 1,
-  "name": "João",
-  "position_id": 1,
-  "position": {
-    "id": 1,
-    "name": "Administrador"
-  }
-}
-```
-
-### Verificando Referências Antes de Deletar
-
-```javascript
-// Verificar se departamento é usado por algum cargo
-const hasReferences = await db.isReferenced(
-  'positions',
-  'departments',
-  departmentId
-);
-
-if (hasReferences) {
-  return db.errorResponse(
-    'Não é possível excluir - existem cargos vinculados',
-    400
-  );
 }
 ```
 
 ---
 
-## Exemplos Práticos
+## Handler de Erros
 
-### Exemplo Completo: API de Produtos
-
-**1. Criar arquivo de dados: `database/products.json`**
-
-```json
-[]
-```
-
-**2. Criar API: `app/api/products/route.js`**
+### Importação
 
 ```javascript
-import * as db from '@/lib/db';
+import { handleSupabaseError } from '@/lib/error-handler';
+```
 
-const TABLE = 'products';
+### Uso
 
-const RELATIONS = {
-  category: { table: 'categories', foreignKey: 'category_id', type: 'one' },
-};
+```javascript
+try {
+  // operação
+} catch (error) {
+  const errorMsg = handleSupabaseError(error, 'contexto.operacao');
+  return db.errorResponse(errorMsg, 500);
+}
+```
 
-export async function GET(req) {
-  const params = db.parseQueryParams(req);
-  const { id, include, ...where } = params;
+O handler traduz erros do Supabase para mensagens amigáveis em português.
 
-  if (id) {
-    const record = await db.getById(TABLE, id, {
-      include: include ? include.split(',') : [],
-      relations: RELATIONS,
-    });
-    if (!record) return db.errorResponse('Produto não encontrado', 404);
-    return db.jsonResponse(record);
+---
+
+## APIs Especiais
+
+### API de Usuários (users)
+
+A API de usuários tem lógica especial para integração com **Supabase Auth**:
+
+```javascript
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+
+// POST - Criar usuário
+// 1. Usa adminClient.auth.admin.createUser() para criar no Auth
+// 2. Trigger automático cria profile com position_id do metadata
+
+// DELETE - Remover usuário
+// 1. Usa adminClient.auth.admin.deleteUser() para remover do Auth
+// 2. Cascade deleta profile automaticamente
+```
+
+### API de Cargos (positions)
+
+A API de cargos permite gerenciar permissões de acesso:
+
+```javascript
+// PUT - Atualizar cargo
+// Campo especial "permissions" atualiza tabela "access"
+const { id, permissions, ...updates } = body;
+
+if (permissions) {
+  // Remove acessos antigos
+  await supabase.from('access').delete().eq('position_id', id);
+
+  // Cria novos acessos
+  for (const perm of permissions) {
+    const { screen_key, permission_key } = perm;
+    // Busca IDs e insere em access
   }
-
-  const data = await db.getAll(TABLE, {
-    where: Object.keys(where).length ? where : undefined,
-    include: include ? include.split(',') : [],
-    relations: RELATIONS,
-  });
-
-  return db.jsonResponse(data);
-}
-
-export async function POST(req) {
-  const body = await req.json();
-
-  if (!body.name || !body.price) {
-    return db.errorResponse('Nome e preço são obrigatórios', 400);
-  }
-
-  const record = await db.create(TABLE, body);
-  return db.jsonResponse(record, 201);
-}
-
-export async function PUT(req) {
-  const body = await req.json();
-  const { id, ...updates } = body;
-
-  if (!id) return db.errorResponse('ID é obrigatório', 400);
-
-  const record = await db.update(TABLE, id, updates);
-  if (!record) return db.errorResponse('Produto não encontrado', 404);
-
-  return db.jsonResponse(record);
-}
-
-export async function DELETE(req) {
-  const { id } = db.parseQueryParams(req);
-
-  if (!id) return db.errorResponse('ID é obrigatório', 400);
-
-  const deleted = await db.remove(TABLE, id);
-  if (!deleted) return db.errorResponse('Produto não encontrado', 404);
-
-  return db.noContentResponse();
 }
 ```
 
@@ -435,55 +291,61 @@ export async function DELETE(req) {
 
 ## Criando uma Nova API
 
-### Checklist
+### 1. Criar arquivo
 
-1. [ ] Criar arquivo JSON em `database/[nome].json` com `[]`
-2. [ ] Criar pasta `app/api/[nome]/`
-3. [ ] Criar arquivo `route.js` com estrutura padrão
-4. [ ] Definir relações se necessário
-5. [ ] Implementar validações específicas
-6. [ ] Adicionar verificação de referências no DELETE
+```
+app/api/[nome]/route.js
+```
 
-### Template Rápido
-
-Copie e cole este template para criar uma nova API:
+### 2. Copiar template
 
 ```javascript
-import * as db from '@/lib/db';
+import * as db from '@/lib/supabase-db';
+import { handleSupabaseError } from '@/lib/error-handler';
 
-const TABLE = 'NOME_DA_TABELA';
+const TABLE = 'nome_tabela';
 
-// Defina relações conforme necessário
 const RELATIONS = {
-  // exemplo: { table: 'related', foreignKey: 'related_id', type: 'one' },
+  // Definir relações se necessário
 };
 
 export async function GET(req) {
   const params = db.parseQueryParams(req);
   const { id, include, ...where } = params;
 
-  if (id) {
-    const record = await db.getById(TABLE, id, {
+  try {
+    if (id) {
+      const record = await db.getById(TABLE, id, {
+        include: include ? include.split(',') : [],
+        relations: RELATIONS,
+      });
+      if (!record) return db.errorResponse('Não encontrado', 404);
+      return db.jsonResponse(record);
+    }
+
+    const data = await db.getAll(TABLE, {
+      where: Object.keys(where).length ? where : undefined,
       include: include ? include.split(',') : [],
       relations: RELATIONS,
     });
-    if (!record) return db.errorResponse('Registro não encontrado', 404);
-    return db.jsonResponse(record);
+
+    return db.jsonResponse(data);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, `${TABLE}.getAll`);
+    return db.errorResponse(errorMsg, 500);
   }
-
-  const data = await db.getAll(TABLE, {
-    where: Object.keys(where).length ? where : undefined,
-    include: include ? include.split(',') : [],
-    relations: RELATIONS,
-  });
-
-  return db.jsonResponse(data);
 }
 
 export async function POST(req) {
   const body = await req.json();
-  const record = await db.create(TABLE, body);
-  return db.jsonResponse(record, 201);
+
+  try {
+    const record = await db.create(TABLE, body);
+    return db.jsonResponse(record, 201);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, `${TABLE}.create`);
+    return db.errorResponse(errorMsg, 500);
+  }
 }
 
 export async function PUT(req) {
@@ -492,10 +354,14 @@ export async function PUT(req) {
 
   if (!id) return db.errorResponse('ID é obrigatório', 400);
 
-  const record = await db.update(TABLE, id, updates);
-  if (!record) return db.errorResponse('Registro não encontrado', 404);
-
-  return db.jsonResponse(record);
+  try {
+    const record = await db.update(TABLE, id, updates);
+    if (!record) return db.errorResponse('Não encontrado', 404);
+    return db.jsonResponse(record);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, `${TABLE}.update`);
+    return db.errorResponse(errorMsg, 500);
+  }
 }
 
 export async function DELETE(req) {
@@ -503,76 +369,50 @@ export async function DELETE(req) {
 
   if (!id) return db.errorResponse('ID é obrigatório', 400);
 
-  const deleted = await db.remove(TABLE, id);
-  if (!deleted) return db.errorResponse('Registro não encontrado', 404);
-
-  return db.noContentResponse();
+  try {
+    await db.remove(TABLE, id);
+    return db.jsonResponse({ success: true });
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, `${TABLE}.delete`);
+    return db.errorResponse(errorMsg, 500);
+  }
 }
 ```
 
----
+### 3. Criar tabela no Supabase
 
-## Boas Práticas
+Ver [DATABASE.md](./DATABASE.md) para padrões de criação de tabelas.
 
-### [CheckCircle2] Faça
+### 4. Registrar tela (se CRUD visível)
 
-- Use `db.isReferenced()` antes de deletar registros com dependências
-- Mantenha nomes de tabelas em inglês e no plural (users, products, categories)
-- Use `snake_case` para campos (position_id, created_at)
-- Retorne mensagens de erro em português para o usuário final
-- Valide campos obrigatórios antes de criar/atualizar
+Adicionar registro em `screens` para controle de permissões:
 
-### [XCircle] Evite
-
-- Não modifique `id` ou `created_at` em atualizações
-- Não acesse arquivos JSON diretamente, use `lib/db.js`
-- Não crie APIs sem os campos padrão (id, created_at, updated_at)
-- Não delete registros sem verificar dependências
-
----
-
-## Referência Rápida de Status HTTP
-
-| Status | Significado | Quando usar          |
-| ------ | ----------- | -------------------- |
-| 200    | OK          | GET/PUT bem-sucedido |
-| 201    | Created     | POST bem-sucedido    |
-| 204    | No Content  | DELETE bem-sucedido  |
-| 400    | Bad Request | Dados inválidos      |
-| 404    | Not Found   | Registro não existe  |
-
----
-
-## Consultas Frontend
-
-### Usando fetch
-
-```javascript
-// GET - Listar todos
-const users = await fetch('/api/users').then((r) => r.json());
-
-// GET - Buscar por ID com relações
-const user = await fetch('/api/users?id=1&include=position').then((r) =>
-  r.json()
-);
-
-// POST - Criar
-const newUser = await fetch('/api/users', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ name: 'João', email: 'joao@example.com' }),
-}).then((r) => r.json());
-
-// PUT - Atualizar
-const updated = await fetch('/api/users', {
-  method: 'PUT',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ id: 1, name: 'João Silva' }),
-}).then((r) => r.json());
-
-// DELETE - Remover
-await fetch('/api/users?id=1', { method: 'DELETE' });
+```sql
+INSERT INTO screens (name, key) VALUES ('Nome Tela', 'chave_tela');
 ```
+
+---
+
+## Convenções
+
+### Nomenclatura
+
+- **Tabelas**: snake_case, plural (`departments`, `positions`)
+- **APIs**: mesmo nome da tabela (`/api/departments`)
+- **Campos FK**: `nome_tabela_id` singular (`department_id`, `position_id`)
+
+### Respostas
+
+- **Sucesso**: Retornar objeto/array diretamente
+- **Erro**: Retornar `{ error: 'mensagem' }`
+- **Delete**: Retornar `{ success: true }`
+
+### Validações
+
+- Validar campos obrigatórios no início do handler
+- Retornar 400 para erros de validação
+- Retornar 404 para registros não encontrados
+- Retornar 500 para erros inesperados
 
 ---
 

@@ -1,14 +1,13 @@
 # Componentes Reutilizáveis - Prototype Template
 
-Este documento descreve todos os componentes reutilizáveis do projeto (exceto componentes UI base).
+Este documento descreve os componentes reutilizáveis do projeto (exceto componentes UI base).
 
 ## Índice
 
 1. [Componentes de Layout](#componentes-de-layout)
 2. [Componentes de Página](#componentes-de-página)
-3. [Componentes de Navegação](#componentes-de-navegação)
-4. [Componentes de Formulário](#componentes-de-formulário)
-5. [Componentes Especiais](#componentes-especiais)
+3. [Componentes de Formulário](#componentes-de-formulário)
+4. [Componentes Especiais](#componentes-especiais)
 
 ---
 
@@ -28,7 +27,7 @@ import { AppSidebar } from '@/components/app-sidebar';
 
 **Configuração do Menu:**
 
-O menu é configurado através do objeto `data` interno:
+O menu é configurado através do objeto `data` interno e filtrado automaticamente baseado nas permissões do usuário:
 
 ```javascript
 const data = {
@@ -41,21 +40,22 @@ const data = {
     {
       title: 'Configurações',
       icon: SquareTerminal,
-      isActive: true, // Expandido por padrão
+      isActive: true,
       items: [
-        // Subitens
-        { title: 'Usuários', url: '/config/users' },
-        { title: 'Cargos', url: '/config/positions' },
+        { title: 'Usuários', url: '/config/users', screenKey: 'users' },
+        { title: 'Cargos', url: '/config/positions', screenKey: 'positions' },
+        {
+          title: 'Departamentos',
+          url: '/config/departments',
+          screenKey: 'departments',
+        },
       ],
     },
   ],
-  navSecondary: [{ title: 'Support', url: '#', icon: LifeBuoy }],
 };
 ```
 
-**Customização:**
-
-Para adicionar novos itens ao menu, edite o objeto `data` no componente.
+**Nota:** Items com `screenKey` são filtrados automaticamente pela permissão `view`.
 
 ---
 
@@ -63,20 +63,13 @@ Para adicionar novos itens ao menu, edite o objeto `data` no componente.
 
 **Arquivo:** `components/app-header.jsx`
 
-Cabeçalho fixo no topo com logo e informações do usuário.
+Cabeçalho fixo no topo com logo e trigger da sidebar.
 
 ```jsx
 import { SiteHeader } from '@/components/app-header';
 
 <SiteHeader />;
 ```
-
-**Características:**
-
-- Logo com animação hover
-- Nome do usuário logado
-- Trigger para sidebar
-- Gradiente de cor primária
 
 ---
 
@@ -89,18 +82,11 @@ Overlay de loading exibido durante navegações.
 ```jsx
 import { AppLoading } from '@/components/app-loading';
 
-// No layout
 <div className="relative flex-1">
   <AppLoading />
   {children}
 </div>;
 ```
-
-**Comportamento:**
-
-- Detecta mudanças de pathname automaticamente
-- Exibe spinner por 2 segundos mínimo
-- Cobre apenas o conteúdo, não a sidebar
 
 ---
 
@@ -116,451 +102,302 @@ Cabeçalho de página com breadcrumb.
 import { PageHeader } from '@/components/page-header';
 
 <PageHeader
-  title="Cadastro de Usuários"
-  description="Gerencie os acessos da plataforma"
-  routes={[
-    { title: 'Home', href: '/' },
-    { title: 'Configuração' },
-    { title: 'Usuários' },
-  ]}
+  title="Título da Página"
+  description="Descrição opcional"
+  routes={[{ title: 'Categoria' }, { title: 'Página Atual' }]}
 />;
 ```
 
 **Props:**
 
-| Prop          | Tipo      | Obrigatório | Descrição           |
-| ------------- | --------- | ----------- | ------------------- |
-| `title`       | `string`  | Não         | Título principal    |
-| `description` | `string`  | Não         | Descrição/subtítulo |
-| `routes`      | `Route[]` | Não         | Itens do breadcrumb |
-
-**Route Object:**
-
-```typescript
-interface Route {
-  title: string; // Texto exibido
-  href?: string; // URL (opcional, último item não precisa)
-}
-```
+| Prop          | Tipo     | Descrição                   |
+| ------------- | -------- | --------------------------- |
+| `title`       | `string` | Título principal (opcional) |
+| `description` | `string` | Subtítulo (opcional)        |
+| `routes`      | `array`  | Array de breadcrumb items   |
 
 ---
 
-### PageFilter
+### DataTable
 
-**Arquivo:** `components/page-filter.jsx`
+**Arquivo:** `components/data-table.jsx`
 
-Barra de filtros dinâmica com suporte a permissões.
+Componente unificado para tabelas CRUD com filtros, paginação, ordenação e permissões.
 
 ```jsx
-import { PageFilter } from '@/components/page-filter';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
+import { DataTable } from '@/components/data-table';
 
-const SCREEN_KEY = 'users';
-
-<PageFilter
-  screenKey={SCREEN_KEY}
-  values={filters}
+<DataTable
+  screenKey="users"
+  columns={[
+    { key: 'name', label: 'Nome' },
+    { key: 'email', label: 'Email' },
+    { key: 'created_at', label: 'Criado em', type: 'date', hideOnMobile: true },
+  ]}
   filters={[
     {
       key: 'name',
       label: 'Nome',
-      component: (props) => <Input {...props} />,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      component: (props) => (
-        <Select {...props}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Ativo</SelectItem>
-            <SelectItem value="inactive">Inativo</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
+      component: (props) => <Input {...props} placeholder="Buscar..." />,
     },
   ]}
-  onSearch={setFilters}
-  onClear={() => setFilters({})}
-  showExport={true}
-  onExport={(format) => console.log(format)}
-/>;
-```
-
-**Props:**
-
-| Prop         | Tipo             | Obrigatório | Descrição                               |
-| ------------ | ---------------- | ----------- | --------------------------------------- |
-| `screenKey`  | `string`         | Não         | Chave da tela para verificar permissões |
-| `values`     | `object`         | Não         | Valores atuais dos filtros              |
-| `filters`    | `FilterConfig[]` | Sim         | Configuração dos campos                 |
-| `onSearch`   | `function`       | Não         | Callback ao pesquisar                   |
-| `onClear`    | `function`       | Não         | Callback ao limpar                      |
-| `showExport` | `boolean`        | Não         | Mostrar botão exportar                  |
-| `onExport`   | `function`       | Não         | Callback exportação                     |
-
-> **Nota:** Quando `screenKey` é fornecido, o botão de exportar só será exibido se o usuário tiver permissão `export` para a tela.
-
-**FilterConfig:**
-
-```typescript
-interface FilterConfig {
-  key: string; // Chave do filtro
-  label: string; // Label do campo
-  component: React.ComponentType; // Componente (Input, Select, etc)
-  componentProps?: object; // Props adicionais
-}
-```
-
----
-
-### PageTable
-
-**Arquivo:** `components/page-table.jsx`
-
-Tabela CRUD completa com paginação, dialogs e suporte a permissões.
-
-```jsx
-import { PageTable } from '@/components/page-table';
-
-const SCREEN_KEY = 'users';
-
-<PageTable
-  screenKey={SCREEN_KEY}
-  columns={[
-    { key: 'name', label: 'Nome' },
-    { key: 'email', label: 'Email' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (v) => (v ? 'Ativo' : 'Inativo'),
-    },
-    { key: 'created_at', label: 'Criado em', type: 'date' },
-  ]}
-  data={pagedData}
-  refs={{ position_id: positionMap }}
-  onCreate={handleCreate}
+  data={data}
+  loading={loading}
   onSave={handleSave}
   onDelete={handleDelete}
-  formLoading={loading}
-  pagination={{
-    page: currentPage,
-    totalPages: 10,
-    onPageChange: setPage,
-  }}
-  EditForm={(props) => <UserForm {...props} />}
-  headerActions={<CustomButton />}
-  rowAction={(row, { hasPermission }) =>
-    hasPermission('view') && <ViewButton row={row} />
-  }
+  formLoading={formLoading}
+  EditForm={(props) => <MeuForm {...props} />}
 />;
 ```
 
-**Props:**
+**Props Principais:**
 
-| Prop            | Tipo        | Obrigatório | Descrição                               |
-| --------------- | ----------- | ----------- | --------------------------------------- |
-| `screenKey`     | `string`    | Não         | Chave da tela para verificar permissões |
-| `columns`       | `Column[]`  | Sim         | Definição das colunas                   |
-| `data`          | `array`     | Sim         | Dados da página atual                   |
-| `refs`          | `object`    | Não         | Lookup maps para IDs                    |
-| `onCreate`      | `function`  | Não         | Antes de abrir dialog de criação        |
-| `onSave`        | `function`  | Sim         | Salvar registro                         |
-| `onDelete`      | `function`  | Sim         | Deletar registro                        |
-| `formLoading`   | `boolean`   | Não         | Loading durante operações               |
-| `pagination`    | `object`    | Não         | Configuração de paginação               |
-| `rowsPerPage`   | `number`    | Não         | Auto-paginação (default: 10)            |
-| `EditForm`      | `component` | Não         | Formulário de edição                    |
-| `headerActions` | `ReactNode` | Não         | Componentes extras no header            |
-| `rowAction`     | `function`  | Não         | Ações extras por linha                  |
+| Prop          | Tipo        | Descrição                                  |
+| ------------- | ----------- | ------------------------------------------ |
+| `screenKey`   | `string`    | Key para verificação de permissões         |
+| `columns`     | `array`     | Definição das colunas                      |
+| `filters`     | `array`     | Definição dos filtros                      |
+| `data`        | `array`     | Dados a exibir                             |
+| `loading`     | `boolean`   | Estado de loading inicial                  |
+| `onSave`      | `function`  | Callback de salvar (create/update)         |
+| `onDelete`    | `function`  | Callback de deletar                        |
+| `formLoading` | `boolean`   | Estado de loading do formulário            |
+| `EditForm`    | `component` | Componente de formulário para criar/editar |
+| `rowAction`   | `function`  | Render function para ações extras          |
+| `rowsPerPage` | `number`    | Linhas por página (default: 10)            |
+| `refs`        | `object`    | Mapas de lookup para campos de referência  |
 
-> **Nota sobre Permissões:** Quando `screenKey` é fornecido:
->
-> - O botão "Cadastrar" só aparece se o usuário tiver permissão `edit`
-> - Os botões de edição por linha só aparecem com permissão `edit`
-> - Os botões de exclusão só aparecem com permissão `delete`
+**Definição de Colunas:**
 
-**rowAction com Permissões:**
+```jsx
+columns={[
+  // Coluna básica
+  { key: 'name', label: 'Nome' },
 
-A função `rowAction` recebe um segundo argumento com utilidades de permissão:
+  // Coluna com tipo (formatação automática)
+  { key: 'created_at', label: 'Criado em', type: 'date' },
+
+  // Coluna com render customizado
+  {
+    key: 'status',
+    label: 'Status',
+    render: (value, row) => <Badge>{value}</Badge>,
+  },
+
+  // Coluna escondida em mobile
+  { key: 'updated_at', label: 'Atualizado', type: 'date', hideOnMobile: true },
+]}
+```
+
+**Definição de Filtros:**
+
+```jsx
+filters={[
+  // Filtro de texto
+  {
+    key: 'name',
+    label: 'Nome',
+    component: (props) => <Input {...props} placeholder="Buscar..." />,
+  },
+
+  // Filtro de select
+  {
+    key: 'status',
+    label: 'Status',
+    component: (props) => (
+      <Select {...props}>
+        <SelectTrigger><SelectValue placeholder="--" /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="active">Ativo</SelectItem>
+          <SelectItem value="inactive">Inativo</SelectItem>
+        </SelectContent>
+      </Select>
+    ),
+  },
+]}
+```
+
+**Row Actions:**
 
 ```jsx
 rowAction={(row, { hasPermission }) => (
   <>
-    {hasPermission('view') && <ViewButton row={row} />}
-    {hasPermission('edit') && <CustomEditButton row={row} />}
+    {hasPermission('custom') && (
+      <Button onClick={() => handleCustom(row)}>
+        Ação
+      </Button>
+    )}
   </>
 )}
 ```
 
-**Column Object:**
+**Recursos Automáticos:**
 
-```typescript
-interface Column {
-  key: string; // Campo do objeto
-  label: string; // Texto do cabeçalho
-  type?: 'date'; // Tipo especial
-  render?: (value, row) => ReactNode; // Renderização customizada
-}
-```
-
----
-
-## Componentes de Navegação
-
-### NavMain
-
-**Arquivo:** `components/nav-main.jsx`
-
-Navegação principal da sidebar com suporte a submenus e permissões.
-
-```jsx
-import { NavMain } from '@/components/nav-main';
-
-<NavMain
-  items={[
-    {
-      title: 'Dashboard',
-      url: '/',
-      icon: HomeIcon,
-    },
-    {
-      title: 'Configurações',
-      icon: SettingsIcon,
-      isActive: true,
-      items: [
-        {
-          title: 'Usuários',
-          url: '/config/users',
-          key: 'users',
-          verify_permission: true,
-        },
-        {
-          title: 'Cargos',
-          url: '/config/positions',
-          key: 'positions',
-          verify_permission: true,
-        },
-      ],
-    },
-  ]}
-/>;
-```
-
-**Props:**
-
-| Prop    | Tipo        | Obrigatório | Descrição          |
-| ------- | ----------- | ----------- | ------------------ |
-| `items` | `NavItem[]` | Sim         | Itens de navegação |
-
-**NavItem:**
-
-```typescript
-interface NavItem {
-  title: string;
-  url?: string;
-  icon: LucideIcon;
-  isActive?: boolean;
-  key?: string; // Chave da tela p/ verificação de permissão
-  verify_permission?: boolean; // Verifica permissão 'view' antes de exibir
-  items?: SubNavItem[];
-}
-
-interface SubNavItem {
-  title: string;
-  url?: string;
-  isActive?: boolean;
-  key?: string; // Chave da tela p/ verificação de permissão
-  verify_permission?: boolean; // Verifica permissão 'view' antes de exibir
-}
-```
-
-> **Nota:** Itens com `verify_permission: true` só serão exibidos se o usuário tiver permissão `view` para a tela indicada por `key`.
-
----
-
-### NavSecondary
-
-**Arquivo:** `components/nav-secondary.jsx`
-
-Navegação secundária (rodapé da sidebar).
-
-```jsx
-import { NavSecondary } from '@/components/nav-secondary';
-
-<NavSecondary
-  items={[
-    { title: 'Suporte', url: '/support', icon: HelpIcon },
-    { title: 'Feedback', url: '/feedback', icon: MessageIcon },
-  ]}
-  className="mt-auto"
-/>;
-```
-
----
-
-### NavUser
-
-**Arquivo:** `components/nav-user.jsx`
-
-Menu do usuário na sidebar com dropdown.
-
-```jsx
-import { NavUser } from '@/components/nav-user';
-
-<NavUser user={currentUser} />;
-```
-
-**Props:**
-
-| Prop   | Tipo   | Obrigatório | Descrição                                                 |
-| ------ | ------ | ----------- | --------------------------------------------------------- |
-| `user` | `User` | Não         | Dados do usuário (busca de localStorage se não fornecido) |
-
-**Funcionalidades:**
-
-- Exibe avatar com iniciais
-- Dropdown com opções
-- Abre dialog de configurações (perfil)
-- Logout
+- ✅ Responsividade (colunas `hideOnMobile`)
+- ✅ Colunas `created_at` e `updated_at` ocultas por padrão
+- ✅ Paginação com seleção de itens por página
+- ✅ Visibilidade de colunas configurável
+- ✅ Verificação de permissões (`edit`, `delete`)
+- ✅ Dialog de confirmação para exclusão
 
 ---
 
 ## Componentes de Formulário
 
-### LoginForm
+### Padrão de Formulário
 
-**Arquivo:** `components/form/login-form.jsx`
-
-Formulário de login.
+Todos os formulários seguem a mesma estrutura:
 
 ```jsx
-import { LoginForm } from '@/components/form/login-form';
+import * as React from 'react';
+import { Button } from '@/components/ui/button';
+import { Field, FieldGroup, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 
-<LoginForm
-  onSubmit={({ email, password }) => handleLogin(email, password)}
-  loading={isLoading}
-/>;
+export function MeuForm({ row, onClose, onSave, loading = false }) {
+  const safeRow = row || {};
+  const [name, setName] = React.useState(safeRow.name || '');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const payload = { id: safeRow.id, name };
+    if (onSave) onSave(payload);
+    if (onClose) onClose();
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <FieldGroup>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field>
+            <FieldLabel htmlFor="name">Nome</FieldLabel>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              disabled={loading}
+            />
+          </Field>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onClose}
+            disabled={loading}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" loading={loading}>
+            Salvar
+          </Button>
+        </div>
+      </FieldGroup>
+    </form>
+  );
+}
 ```
 
----
+**Props Padrão:**
 
-### UserForm
+| Prop      | Tipo       | Descrição                        |
+| --------- | ---------- | -------------------------------- |
+| `row`     | `object`   | Dados para edição (null = criar) |
+| `onClose` | `function` | Callback para fechar o dialog    |
+| `onSave`  | `function` | Callback com payload             |
+| `loading` | `boolean`  | Estado de loading                |
 
-**Arquivo:** `components/form/user-form.jsx`
+### Formulários Existentes
 
-Formulário de usuário.
+| Arquivo               | Descrição                       |
+| --------------------- | ------------------------------- |
+| `department-form.jsx` | Formulário de departamentos     |
+| `position-form.jsx`   | Formulário de cargos            |
+| `user-form.jsx`       | Formulário de usuários          |
+| `login-form.jsx`      | Formulário de login             |
+| `profile-form.jsx`    | Formulário de perfil do usuário |
+| `config-form.jsx`     | Formulário de configurações     |
 
-```jsx
-import { UserForm } from '@/components/form/user-form';
+### UserForm (Especial)
 
-<UserForm
-  row={userToEdit} // null para criar
-  onClose={closeDialog}
-  onSave={handleSave}
-  positions={positionsList}
-  loading={isSaving}
-/>;
-```
+O formulário de usuários tem lógica especial para:
 
----
-
-### DepartmentForm
-
-**Arquivo:** `components/form/department-form.jsx`
-
-Formulário de departamento.
-
-```jsx
-import { DepartmentForm } from '@/components/form/department-form';
-
-<DepartmentForm
-  row={departmentToEdit}
-  onClose={closeDialog}
-  onSave={handleSave}
-  loading={isSaving}
-/>;
-```
-
----
-
-### PositionForm
-
-**Arquivo:** `components/form/position-form.jsx`
-
-Formulário de cargo.
+- Departamento filtra os cargos disponíveis
+- Carrega posição inicial baseado no `position_id`
 
 ```jsx
-import { PositionForm } from '@/components/form/position-form';
-
-<PositionForm
-  row={positionToEdit}
-  onClose={closeDialog}
-  onSave={handleSave}
-  departments={departmentsList}
-  loading={isSaving}
-/>;
-```
-
----
-
-### ProfileForm
-
-**Arquivo:** `components/form/profile-form.jsx`
-
-Formulário de perfil do usuário logado.
-
-```jsx
-import { ProfileForm } from '@/components/form/profile-form';
-
-<ProfileForm />;
-```
-
----
-
-### ConfigForm
-
-**Arquivo:** `components/form/config-form.jsx`
-
-Formulário de configurações gerais.
-
-```jsx
-import { ConfigForm } from '@/components/form/config-form';
-
-<ConfigForm />;
+// Carrega departamento baseado na posição
+React.useEffect(() => {
+  if (row?.position_id && positions.length) {
+    const currentPosition = positions.find(
+      (p) => String(p.id) === String(row.position_id)
+    );
+    if (currentPosition?.department_id) {
+      setDepartmentId(String(currentPosition.department_id));
+    }
+  }
+}, [row?.position_id, positions]);
 ```
 
 ---
 
 ## Componentes Especiais
 
-### LoginScreen
+### AccessButton
 
-**Arquivo:** `components/login-screen.jsx`
+**Arquivo:** `components/buttons/access-button.jsx`
 
-Tela completa de login com card centralizado.
+Botão para gerenciar permissões de um cargo.
 
 ```jsx
-import { LoginScreen } from '@/components/login-screen';
+import { AccessButton } from '@/components/buttons/access-button';
 
-<LoginScreen />;
+<AccessButton
+  positionId={row.id}
+  onSaved={(items) => handlePermissionsSaved(row, items)}
+/>;
 ```
 
-**Características:**
+**Props:**
 
-- Card centralizado
-- Integração com API de usuários
-- Armazena em localStorage e cookie
-- Redireciona para home após login
+| Prop         | Tipo       | Descrição                          |
+| ------------ | ---------- | ---------------------------------- |
+| `positionId` | `number`   | ID do cargo para editar permissões |
+| `onSaved`    | `function` | Callback após salvar               |
+
+**Funcionalidades:**
+
+- Lista todas as telas (`screens`)
+- Lista todas as permissões (`permissions`)
+- Accordion com checkbox para cada combinação tela/permissão
+- Campo de pesquisa para filtrar telas
+- Badge mostrando quantidade de permissões por tela
+
+---
+
+### EmailVerificationBadge
+
+**Arquivo:** `components/email-verification-badge.jsx`
+
+Badge para exibir status de verificação de email.
+
+```jsx
+import { EmailVerificationBadge } from '@/components/email-verification-badge';
+
+<EmailVerificationBadge confirmedAt={user.confirmed_at} />;
+```
+
+**Props:**
+
+| Prop          | Tipo     | Descrição                          |
+| ------------- | -------- | ---------------------------------- |
+| `confirmedAt` | `string` | Timestamp de confirmação (ou null) |
+
+**Exibição:**
+
+- ✓ Verificado (verde) - quando `confirmedAt` existe
+- ✗ Não verificado (cinza) - quando `confirmedAt` é null
 
 ---
 
@@ -568,83 +405,13 @@ import { LoginScreen } from '@/components/login-screen';
 
 **Arquivo:** `components/settings-dialog.jsx`
 
-Dialog de configurações com navegação interna.
+Dialog de configurações globais (tema, etc).
 
 ```jsx
 import { SettingsDialog } from '@/components/settings-dialog';
 
-<SettingsDialog open={isOpen} onOpenChange={setIsOpen} />;
+<SettingsDialog />;
 ```
-
-**Seções:**
-
-- Geral (ProfileForm)
-- Configurações (ConfigForm)
-- Permissões (PermissionsSection)
-
----
-
-### PermissionsSection
-
-**Arquivo:** `components/permissions-section.jsx`
-
-Exibe permissões do usuário atual.
-
-```jsx
-import { PermissionsSection } from '@/components/permissions-section';
-
-<PermissionsSection />;
-```
-
-**Características:**
-
-- Busca permissões do cargo do usuário
-- Exibe tabela tela x permissão
-
----
-
-### AccessButton
-
-**Arquivo:** `components/buttons/access-button.jsx`
-
-Botão + dialog para gerenciar permissões de um cargo.
-
-```jsx
-import { AccessButton } from '@/components/buttons/access-button';
-
-<AccessButton
-  positionId={cargoId}
-  initial={permissoesExistentes}
-  onSaved={(newPermissions) => updatePosition(newPermissions)}
-/>;
-```
-
-**Props:**
-
-| Prop         | Tipo           | Obrigatório | Descrição           |
-| ------------ | -------------- | ----------- | ------------------- |
-| `positionId` | `number`       | Sim         | ID do cargo         |
-| `initial`    | `Permission[]` | Não         | Permissões iniciais |
-| `onSaved`    | `function`     | Não         | Callback ao salvar  |
-
----
-
-### AppUser
-
-**Arquivo:** `components/app-user.jsx`
-
-Dropdown de usuário para uso em headers/toolbars.
-
-```jsx
-import { AppUser } from '@/components/app-user';
-
-<AppUser user={currentUser} />;
-```
-
-**Diferença de NavUser:**
-
-- `NavUser`: Para sidebar, layout maior
-- `AppUser`: Para header, botão compacto
 
 ---
 
@@ -652,7 +419,7 @@ import { AppUser } from '@/components/app-user';
 
 **Arquivo:** `components/mode-toggle.jsx`
 
-Toggle de tema claro/escuro.
+Toggle para alternar entre tema claro/escuro.
 
 ```jsx
 import { ModeToggle } from '@/components/mode-toggle';
@@ -662,58 +429,29 @@ import { ModeToggle } from '@/components/mode-toggle';
 
 ---
 
-### ThemeProvider
+## Convenções de Criação
 
-**Arquivo:** `components/theme-provider.jsx`
+### Novo Formulário
 
-Provider para gerenciamento de tema.
+1. Criar arquivo em `components/forms/[nome]-form.jsx`
+2. Seguir estrutura padrão (props: row, onClose, onSave, loading)
+3. Usar `FieldGroup`, `Field`, `FieldLabel` para campos
+4. Grid responsivo: `grid-cols-1 sm:grid-cols-2`
+5. Botões no final: Cancelar (outline) + Salvar (primary)
 
-```jsx
-import { ThemeProvider } from '@/components/theme-provider';
+### Novo Botão Especial
 
-<ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-  {children}
-</ThemeProvider>;
-```
+1. Criar arquivo em `components/buttons/[nome]-button.jsx`
+2. Usar Dialog se precisar de modal
+3. Verificar permissões quando necessário
+4. Usar toast para feedback
 
----
+### Responsividade
 
-## Convenções
-
-### Criando Novos Componentes
-
-1. **Componentes de UI base**: `components/ui/`
-2. **Componentes de layout**: `components/` (raiz)
-3. **Componentes de formulário**: `components/form/`
-4. **Botões/ações especiais**: `components/buttons/`
-
-### Padrão de Props
-
-```jsx
-export function MyComponent({
-  // Required props first
-  data,
-  onSave,
-
-  // Optional props with defaults
-  loading = false,
-  className,
-
-  // Spread rest for flexibility
-  ...props
-}) {
-  // ...
-}
-```
-
-### Nomenclatura
-
-| Tipo       | Padrão         | Exemplo           |
-| ---------- | -------------- | ----------------- |
-| Componente | PascalCase     | `PageHeader`      |
-| Arquivo    | kebab-case     | `page-header.jsx` |
-| Prop       | camelCase      | `onSave`          |
-| Handler    | handle[Action] | `handleSave`      |
+- Mobile first: começar com layout de 1 coluna
+- Breakpoints: `sm:` (640px), `md:` (768px), `lg:` (1024px)
+- DataTable: usar `hideOnMobile: true` em colunas secundárias
+- Forms: usar `grid-cols-1 sm:grid-cols-2`
 
 ---
 

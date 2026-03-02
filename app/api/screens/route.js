@@ -1,4 +1,5 @@
-import * as db from '@/lib/db';
+import * as db from '@/lib/supabase-db';
+import { handleSupabaseError } from '@/lib/error-handler';
 
 const TABLE = 'screens';
 
@@ -6,25 +7,34 @@ export async function GET(req) {
   const params = db.parseQueryParams(req);
   const { id, ...where } = params;
 
-  // Get single record by ID
-  if (id) {
-    const record = await db.getById(TABLE, id);
-    if (!record) return db.errorResponse('Tela não encontrada', 404);
-    return db.jsonResponse(record);
+  try {
+    if (id) {
+      const record = await db.getById(TABLE, id);
+      if (!record) return db.errorResponse('Tela não encontrada', 404);
+      return db.jsonResponse(record);
+    }
+
+    const data = await db.getAll(TABLE, {
+      where: Object.keys(where).length ? where : undefined,
+    });
+
+    return db.jsonResponse(data);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'screens.getAll');
+    return db.errorResponse(errorMsg, 500);
   }
-
-  // Get all records with optional filters
-  const data = await db.getAll(TABLE, {
-    where: Object.keys(where).length ? where : undefined,
-  });
-
-  return db.jsonResponse(data);
 }
 
 export async function POST(req) {
   const body = await req.json();
-  const record = await db.create(TABLE, body);
-  return db.jsonResponse(record, 201);
+
+  try {
+    const record = await db.create(TABLE, body);
+    return db.jsonResponse(record, 201);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'screens.create');
+    return db.errorResponse(errorMsg, 500);
+  }
 }
 
 export async function PUT(req) {
@@ -33,10 +43,14 @@ export async function PUT(req) {
 
   if (!id) return db.errorResponse('ID é obrigatório', 400);
 
-  const record = await db.update(TABLE, id, updates);
-  if (!record) return db.errorResponse('Tela não encontrada', 404);
-
-  return db.jsonResponse(record);
+  try {
+    const record = await db.update(TABLE, id, updates);
+    if (!record) return db.errorResponse('Tela não encontrada', 404);
+    return db.jsonResponse(record);
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'screens.update');
+    return db.errorResponse(errorMsg, 500);
+  }
 }
 
 export async function DELETE(req) {
@@ -44,8 +58,11 @@ export async function DELETE(req) {
 
   if (!id) return db.errorResponse('ID é obrigatório', 400);
 
-  const deleted = await db.remove(TABLE, id);
-  if (!deleted) return db.errorResponse('Tela não encontrada', 404);
-
-  return db.noContentResponse();
+  try {
+    await db.remove(TABLE, id);
+    return db.jsonResponse({ success: true });
+  } catch (error) {
+    const errorMsg = handleSupabaseError(error, 'screens.delete');
+    return db.errorResponse(errorMsg, 500);
+  }
 }

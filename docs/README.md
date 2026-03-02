@@ -1,20 +1,19 @@
 # Documentação - Prototype Template
 
-Bem-vindo à documentação do Prototype Template. Este projeto é uma estrutura para prototipagem rápida de aplicações web com Next.js.
+Bem-vindo à documentação do Prototype Template. Este projeto é uma estrutura para prototipagem rápida de aplicações web com Next.js e Supabase.
 
 ## Documentos Disponíveis
 
 ### [API.md](API.md)
 
-Padrão de construção de APIs REST com banco de dados JSON.
+Padrão de construção de APIs REST com Supabase.
 
 **Conteúdo:**
 
-- Estrutura de dados padrão
-- Utilitário `lib/db.js`
+- Utilitário `lib/supabase-db.js`
 - Operações CRUD
-- Relações entre tabelas
-- Helpers de resposta
+- Definição de relações
+- Tratamento de erros
 - Template para novas APIs
 
 ### [PAGES.md](PAGES.md)
@@ -25,9 +24,8 @@ Padrão de páginas e comunicação com API.
 
 - Estrutura de pastas
 - Hooks `useApi` e `useCrud`
-- Página CRUD padrão
-- Componentes de página
-- Páginas personalizadas
+- Página CRUD com DataTable
+- Sistema de permissões
 - Checklist para novas páginas
 
 ### [COMPONENTS.md](COMPONENTS.md)
@@ -36,11 +34,22 @@ Documentação de componentes reutilizáveis.
 
 **Conteúdo:**
 
-- Componentes de layout
-- Componentes de página
-- Componentes de navegação
+- Componentes de layout (AppSidebar, SiteHeader)
+- Componentes de página (PageHeader, DataTable)
 - Componentes de formulário
-- Componentes especiais
+- Componentes especiais (AccessButton)
+
+### [DATABASE.md](DATABASE.md)
+
+Estrutura do banco de dados Supabase.
+
+**Conteúdo:**
+
+- Esquema de tabelas (profile, positions, departments, etc.)
+- Relacionamentos e Foreign Keys
+- Triggers (handle_new_user, sync_user_changes)
+- Políticas RLS
+- Convenções e Seed Data
 
 ---
 
@@ -48,30 +57,41 @@ Documentação de componentes reutilizáveis.
 
 ### Criar Nova Entidade CRUD
 
-1. **Banco de Dados** - Criar `database/entities.json`:
+1. **Tabela no Supabase** - Criar via SQL:
 
-   ```json
-   []
+   ```sql
+   CREATE TABLE entities (
+     id SERIAL PRIMARY KEY,
+     name TEXT NOT NULL,
+     created_at TIMESTAMPTZ DEFAULT now(),
+     updated_at TIMESTAMPTZ DEFAULT now()
+   );
    ```
 
-2. **API** - Criar `app/api/entities/route.js`:
+2. **Tela de Permissão** - Registrar na tabela `screens`:
+
+   ```sql
+   INSERT INTO screens (name, key) VALUES ('Entidades', 'entities');
+   ```
+
+3. **API** - Criar `app/api/entities/route.js`:
 
    ```javascript
-   import * as db from '@/lib/db';
+   import * as db from '@/lib/supabase-db';
    const TABLE = 'entities';
    // ... (ver template em API.md)
    ```
 
-3. **Formulário** - Criar `components/form/entity-form.jsx`
+4. **Formulário** - Criar `components/forms/entity-form.jsx`
 
-4. **Página** - Criar `app/(private)/config/entities/page.jsx`:
+5. **Página** - Criar `app/(private)/config/entities/page.jsx`:
 
    ```jsx
    import { useCrud } from '@/hooks/use-crud';
    // ... (ver template em PAGES.md)
    ```
 
-5. **Menu** - Adicionar em `components/app-sidebar.jsx`
+6. **Menu** - Adicionar em `components/app-sidebar.jsx`
 
 ---
 
@@ -85,13 +105,13 @@ prototype-template/
 │   ├── (public)/          # Páginas públicas
 │   └── api/               # Endpoints REST
 ├── components/            # Componentes React
-│   ├── form/              # Formulários
+│   ├── forms/             # Formulários
 │   ├── buttons/           # Botões especiais
 │   └── ui/                # Componentes UI base
-├── database/              # Arquivos JSON (banco de dados)
 ├── docs/                  # Documentação
 ├── hooks/                 # React Hooks customizados
 ├── lib/                   # Utilitários
+│   └── supabase/          # Clientes Supabase
 └── public/                # Arquivos estáticos
 ```
 
@@ -99,21 +119,26 @@ prototype-template/
 
 ## Arquivos Principais
 
-| Arquivo                      | Descrição                    |
-| ---------------------------- | ---------------------------- |
-| `lib/db.js`                  | Utilitário de banco de dados |
-| `hooks/use-api.js`           | Hook de comunicação com API  |
-| `hooks/use-crud.js`          | Hook de gerenciamento CRUD   |
-| `middleware.js`              | Proteção de rotas            |
-| `components/app-sidebar.jsx` | Menu de navegação            |
+| Arquivo                      | Descrição                         |
+| ---------------------------- | --------------------------------- |
+| `lib/supabase-db.js`         | Utilitário de banco de dados      |
+| `lib/supabase/server.js`     | Cliente Supabase (server-side)    |
+| `lib/supabase/client.js`     | Cliente Supabase (client-side)    |
+| `lib/error-handler.js`       | Tratamento de erros Supabase      |
+| `hooks/use-api.js`           | Hook de comunicação com API       |
+| `hooks/use-crud.js`          | Hook de gerenciamento CRUD        |
+| `hooks/use-permission.js`    | Hook de verificação de permissões |
+| `middleware.js`              | Proteção de rotas                 |
+| `components/app-sidebar.jsx` | Menu de navegação                 |
 
 ---
 
 ## Tecnologias
 
-- **Framework:** Next.js 14 (App Router)
+- **Framework:** Next.js 16 (App Router + Turbopack)
 - **UI:** Shadcn/ui + Tailwind CSS
-- **Banco de Dados:** JSON Files
+- **Banco de Dados:** Supabase (PostgreSQL)
+- **Autenticação:** Supabase Auth
 - **Ícones:** Lucide React
 
 ---

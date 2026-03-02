@@ -1,28 +1,74 @@
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
 
-// Next.js 14+ uses a `proxy` function instead of `middleware`.  Exporting a
-// named `proxy` (or default) ensures Turbopack builds correctly.
-export function proxy(req) {
-  const url = req.nextUrl.clone();
-  const { pathname } = url;
-  // only protect paths under /(private). anything outside that (including
-  // /(public) pages) is considered public and may be visited without a user
-  // cookie. we explicitly allow login as well.
-  if (!pathname.startsWith('/(private)')) {
-    return NextResponse.next();
+export async function middleware(req) {
+  const res = NextResponse.next();
+  const { pathname } = req.nextUrl;
+
+  // Routes públicas (sem autenticação necessária)
+  const publicRoutes = ['/login', '/api/auth', '/_next', '/favicon.ico'];
+  const isPublicRoute = publicRoutes.some((route) =>
+    pathname.startsWith(route)
+  );
+
+  // Se for rota pública, deixa passar
+  if (isPublicRoute) {
+    return res;
   }
-  // allow login regardless
-  if (pathname === '/login' || pathname.startsWith('/_next')) {
-    return NextResponse.next();
+
+  // Criar cliente Supabase para validar sessão
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        get(name) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name, value, options) {
+          res.cookies.set(name, value, options);
+        },
+        remove(name, options) {
+          res.cookies.delete(name);
+        },
+      },
+    }
+  );
+
+  // Validar sessão do usuário
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Se não houver usuário autenticado, redireciona para login
+  if (!user) {
+    // Evita redirecionar para login se já estiver em login
+    if (pathname === '/login') {
+      return res;
+    }
+
+    const loginUrl = new URL('/login', req.url);
+
+    // Preserva a rota original para redirecionamento após login
+    // Não adiciona redirect se já estiver em uma página de login
+    if (pathname && pathname !== '/') {
+      loginUrl.searchParams.set('redirect', pathname);
+    }
+
+    return NextResponse.redirect(loginUrl);
   }
-  const cookie = req.cookies.get('user');
-  if (!cookie) {
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-  return NextResponse.next();
+
+  return res;
+}
+
+// Exportar também como proxy para compatibilidade
+export async function proxy(req) {
+  return middleware(req);
 }
 
 export const config = {
-  matcher: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  matcher: [
+    // Proteger todas as rotas exceto as públicas listadas
+    '/((?!login|_next|api/auth|favicon\\.ico).*)',
+  ],
 };

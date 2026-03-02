@@ -1,46 +1,29 @@
 # Padrão de Páginas - Prototype Template
 
-Este documento define os padrões de construção de páginas e comunicação com APIs.
+Este documento define os padrões de construção de páginas, comunicação com APIs e sistema de permissões.
 
 ## Índice
 
 1. [Autenticação](#autenticação)
 2. [Sistema de Permissões](#sistema-de-permissões)
 3. [Estrutura de Pastas](#estrutura-de-pastas)
-4. [Hooks de Comunicação](#hooks-de-comunicação)
-5. [Página CRUD Padrão](#página-crud-padrão)
-6. [Componentes de Página](#componentes-de-página)
-7. [Exemplos Práticos](#exemplos-práticos)
-8. [Páginas Personalizadas](#páginas-personalizadas)
+4. [Página CRUD Padrão](#página-crud-padrão)
+5. [Páginas Personalizadas](#páginas-personalizadas)
+6. [Hooks Disponíveis](#hooks-disponíveis)
 
 ---
 
 ## Autenticação
 
-Sistema simplificado de login/logout usando localStorage e cookies.
+Sistema de autenticação usando **Supabase Auth**.
 
-### lib/auth.js - Funções de Autenticação
+### Fluxo de Autenticação
 
-```javascript
-import { login, logout, getUser, isAuthenticated, setUser, clearUser } from '@/lib/auth';
-
-// Login - valida credenciais e salva usuário
-const result = await login(email, password);
-// result: { success: true, user: {...} } ou { success: false, error: 'mensagem' }
-
-// Logout - limpa localStorage/cookie e redireciona para /login
-logout();
-
-// Obter usuário atual
-const user = getUser();
-
-// Verificar se está autenticado
-if (isAuthenticated()) { ... }
-
-// Salvar/limpar usuário manualmente
-setUser(userData);
-clearUser();
-```
+1. **Login**: Página `/login` usa `useAuth` hook
+2. **Validação**: Supabase Auth valida credenciais
+3. **Sessão**: Cookies gerenciados automaticamente pelo Supabase
+4. **Middleware**: Proxy valida sessão e redireciona se necessário
+5. **Logout**: Limpa sessão e redireciona para `/login`
 
 ### useAuth - Hook React
 
@@ -51,8 +34,8 @@ function MeuComponente() {
   const { user, loading, ready, isAuthenticated, login, logout, refresh } =
     useAuth();
 
-  // ready = true quando terminou de carregar do localStorage
-  // loading = true durante login
+  // ready = true quando terminou de carregar sessão
+  // loading = true durante operações de auth
 
   const handleLogin = async () => {
     const result = await login(email, password);
@@ -63,40 +46,26 @@ function MeuComponente() {
 }
 ```
 
-### Fluxo de Autenticação
-
-1. **Login**: Página `/login` usa `useAuth` hook
-2. **Validação**: `lib/auth.js` busca usuário via API e valida credenciais
-3. **Armazenamento**: Dados salvos em localStorage e cookie
-4. **Redirecionamento**: Sucesso → `/`, Falha → toast de erro
-5. **Logout**: `logout()` limpa dados e redireciona para `/login`
-
 ### Proteção de Rotas
 
-- **Middleware**: Verifica cookie `user` para rotas `/(private)`
-- **Layout Privado**: Validação server-side com `cookies()`
+- **Middleware (`proxy.js`)**: Verifica sessão Supabase para rotas `/(private)`
+- **Redirecionamento**: Sem sessão → `/login`
+- **Com sessão válida**: Acesso liberado
 
 ---
 
 ## Sistema de Permissões
 
-Sistema de controle de acesso baseado em cargo e tela.
+Sistema de controle de acesso baseado em **cargo** (position) e **tela** (screen).
 
-### Estrutura de Permissões
+### Estrutura de Dados
 
-Permissões são definidas por cargo em `positions.json`:
-
-```json
-{
-  "id": 1,
-  "name": "Administrador",
-  "permissions": [
-    { "screen_key": "users", "permission_key": "view" },
-    { "screen_key": "users", "permission_key": "edit" },
-    { "screen_key": "users", "permission_key": "delete" },
-    { "screen_key": "users", "permission_key": "export" }
-  ]
-}
+```
+positions (cargo)
+    ↓
+access (position_id, screen_id, permission_id)
+    ↓         ↓
+screens   permissions
 ```
 
 ### Tipos de Permissão
@@ -107,6 +76,7 @@ Permissões são definidas por cargo em `positions.json`:
 | `edit`   | Criar/Editar    | Botão "Cadastrar" e "Editar"   |
 | `delete` | Excluir         | Botão "Excluir"                |
 | `export` | Exportar        | Botão "Exportar"               |
+| `grant`  | Conceder acesso | Botão "Acessos" em Cargos      |
 
 ### usePermission - Hook React
 
@@ -115,30 +85,27 @@ import { usePermission } from '@/hooks/use-permission';
 
 function MeuComponente() {
   const {
-    hasPermission,   // Verifica permissão específica
-    canView,         // Atalho para 'view'
-    canEdit,         // Atalho para 'edit'
-    canDelete,       // Atalho para 'delete'
-    canExport,       // Atalho para 'export'
-    loading,         // Carregando permissões
-    ready,           // Permissões carregadas
-    permissions,     // Array de todas permissões
-    getPermissionsFor  // Retorna permissões de uma tela
+    hasPermission,      // Verifica permissão específica
+    canView,            // Atalho para 'view'
+    canEdit,            // Atalho para 'edit'
+    canDelete,          // Atalho para 'delete'
+    canExport,          // Atalho para 'export'
+    loading,            // Carregando permissões
+    ready,              // Permissões carregadas
+    permissions,        // Array de todas permissões
+    getPermissionsFor   // Retorna permissões de uma tela
   } = usePermission();
 
   // Exemplos de uso
   if (hasPermission('users', 'edit')) { ... }
   if (canView('users')) { ... }
   if (canDelete('positions')) { ... }
-
-  // Listar permissões de uma tela
-  const perms = getPermissionsFor('users'); // ['view', 'edit', 'delete']
 }
 ```
 
-### SCREEN_KEY - Padrão de Páginas
+### SCREEN_KEY - Padrão Obrigatório
 
-**Toda página CRUD deve declarar sua `SCREEN_KEY`** no início do arquivo:
+**Toda página CRUD deve declarar sua `SCREEN_KEY`:**
 
 ```jsx
 const SCREEN_KEY = 'users';
@@ -148,83 +115,11 @@ export default function UsersPage() {
 }
 ```
 
-A `SCREEN_KEY` deve corresponder à key registrada em `screens.json`:
+A `SCREEN_KEY` deve corresponder à key registrada na tabela `screens`:
 
-```json
-{ "id": 1, "name": "Usuários", "key": "users" }
+```sql
+INSERT INTO screens (name, key) VALUES ('Usuários', 'users');
 ```
-
-### Integração com Componentes
-
-#### PageFilter com Permissão de Export
-
-```jsx
-<PageFilter
-  screenKey={SCREEN_KEY} // Verifica permissão 'export'
-  showExport={true} // Exibe botão (desabilitado se sem permissão)
-  onExport={(format) => handleExport(format)}
-  // ...
-/>
-```
-
-#### PageTable com Permissões de Edit/Delete
-
-```jsx
-<PageTable
-  screenKey={SCREEN_KEY} // Verifica permissões 'edit' e 'delete'
-  // Botões desaparecem se usuário não tem permissão
-  // ...
-/>
-```
-
-#### rowAction com Permissão Customizada
-
-```jsx
-<PageTable
-  screenKey={SCREEN_KEY}
-  rowAction={(row, { hasPermission }) => (
-    <>
-      {hasPermission('custom') && <MeuBotao row={row} />}
-      <OutroBotao row={row} />
-    </>
-  )}
-/>
-```
-
-### Controle de Menu (NavMain)
-
-O menu é filtrado automaticamente com base na permissão `view`:
-
-```javascript
-// app-sidebar.jsx - Configuração do menu
-const data = {
-  navMain: [
-    {
-      title: 'Dashboard',
-      url: '/',
-      verify_permission: false, // Sempre visível
-      key: 'dashboard',
-      icon: LayoutDashboard,
-    },
-    {
-      title: 'Configurações',
-      icon: SquareTerminal,
-      items: [
-        {
-          title: 'Usuários',
-          url: '/config/users',
-          verify_permission: true, // Verifica permissão 'view'
-          key: 'users', // Deve corresponder à screen_key
-        },
-      ],
-    },
-  ],
-};
-```
-
-- `verify_permission: false` → Item sempre visível
-- `verify_permission: true` → Verifica se usuário tem `view` para a `key`
-- Grupos sem itens visíveis ficam ocultos automaticamente
 
 ---
 
@@ -232,353 +127,89 @@ const data = {
 
 ```
 app/
-├── (auth)/          # Páginas de autenticação (login, registro)
+├── (auth)/           → Páginas públicas de autenticação
 │   └── login/
-├── (private)/       # Páginas protegidas (requer autenticação)
-│   ├── layout.jsx   # Layout com sidebar e header
-│   ├── page.jsx     # Dashboard principal
-│   └── config/      # Páginas de configuração
-│       ├── users/
+│       └── page.jsx
+├── (private)/        → Páginas protegidas (requer login)
+│   ├── layout.jsx    → Layout com sidebar + header
+│   ├── page.jsx      → Dashboard (/)
+│   └── config/       → Páginas de configuração
+│       ├── departments/
+│       │   └── page.jsx
 │       ├── positions/
-│       └── departments/
-├── (public)/        # Páginas públicas
-│   └── exemple/
-└── api/             # Endpoints da API
-```
-
-### Nomenclatura
-
-| Tipo               | Padrão                | Exemplo          |
-| ------------------ | --------------------- | ---------------- |
-| Pasta de página    | `kebab-case`          | `user-settings/` |
-| Arquivo de página  | `page.jsx`            | `page.jsx`       |
-| Componente de form | `[entidade]-form.jsx` | `user-form.jsx`  |
-
----
-
-## Hooks de Comunicação
-
-### useApi - Comunicação Básica
-
-Hook para comunicação direta com endpoints da API.
-
-```javascript
-import { useApi } from '@/hooks/use-api';
-
-const api = useApi('/api/users', {
-  showToasts: true,
-  messages: {
-    createSuccess: 'Usuário criado com sucesso',
-    updateSuccess: 'Usuário atualizado com sucesso',
-    deleteSuccess: 'Usuário excluído com sucesso',
-  },
-});
-
-// Métodos disponíveis
-await api.getAll(); // Lista todos
-await api.getById(1); // Busca por ID
-await api.create(data); // Cria novo
-await api.update(data); // Atualiza (data.id obrigatório)
-await api.remove(id); // Remove
-await api.save(data); // Cria ou atualiza baseado em data.id
-
-// Estados
-api.loading; // boolean - carregando
-api.error; // string | null - mensagem de erro
-```
-
-### useCrud - Gerenciamento Completo de CRUD
-
-Hook para páginas CRUD completas com filtros, paginação e relacionamentos.
-
-```javascript
-import { useCrud } from '@/hooks/use-crud';
-
-const crud = useCrud({
-  endpoint: '/api/users',
-  pageSize: 10,
-  relations: [
-    { key: 'positions', endpoint: '/api/positions', labelKey: 'name' },
-  ],
-  messages: {
-    createSuccess: 'Usuário criado com sucesso',
-  },
-});
-
-// Data
-crud.data; // Dados completos
-crud.filteredData; // Dados filtrados
-crud.pagedData; // Dados da página atual
-crud.relatedData; // { positions: [...] }
-crud.lookupMaps; // { positions: { 1: 'Admin', 2: 'User' } }
-
-// Filtros
-crud.filters; // Objeto com filtros atuais
-crud.setFilters({ name: 'João' });
-crud.clearFilters();
-
-// Paginação
-crud.page; // Página atual
-crud.setPage(2);
-crud.totalPages; // Total de páginas
-crud.pagination; // Objeto pronto para PageTable
-
-// Estados
-crud.loading; // Operação em andamento
-crud.initialLoading; // Carregamento inicial
-
-// Handlers
-await crud.handleSave(item); // Salva (cria ou atualiza)
-await crud.handleDelete(item); // Remove
-await crud.refresh(); // Recarrega dados
+│       │   └── page.jsx
+│       └── users/
+│           └── page.jsx
+└── (public)/         → Páginas públicas sem auth
+    └── exemple/
+        └── page.jsx
 ```
 
 ---
 
 ## Página CRUD Padrão
 
-### Estrutura Básica
+### Template Completo
 
 ```jsx
 'use client';
 
 import * as React from 'react';
 import { PageHeader } from '@/components/page-header';
-import { PageTable } from '@/components/page-table';
-import { PageFilter } from '@/components/page-filter';
-import { EntityForm } from '@/components/form/entity-form';
+import { DataTable } from '@/components/data-table';
+import { MeuForm } from '@/components/forms/meu-form';
 import { Input } from '@/components/ui/input';
 import { useCrud } from '@/hooks/use-crud';
 
-// Identificador da tela para o sistema de permissões
-const SCREEN_KEY = 'entities';
+const SCREEN_KEY = 'minha_tela';
 
-export default function EntitiesPage() {
+export default function MinhaPagina() {
   const crud = useCrud({
-    endpoint: '/api/entities',
+    endpoint: '/api/minha-tabela',
     pageSize: 10,
     relations: [
-      // { key: 'related', endpoint: '/api/related' },
+      { key: 'relacionada', endpoint: '/api/relacionada', labelKey: 'name' },
     ],
+    messages: {
+      createSuccess: 'Criado com sucesso',
+      updateSuccess: 'Atualizado com sucesso',
+      deleteSuccess: 'Excluído com sucesso',
+      createError: 'Erro ao criar',
+      updateError: 'Erro ao atualizar',
+      deleteError: 'Erro ao excluir',
+    },
   });
 
   return (
-    <div className="space-y-2 p-2">
+    <div className="space-y-2 p-2 sm:p-4">
       <PageHeader
-        title="Título da Página"
+        title="Minha Página"
         description="Descrição da página"
-        routes={[{ title: 'Categoria' }, { title: 'Título da Página' }]}
+        routes={[{ title: 'Categoria' }, { title: 'Minha Página' }]}
       />
 
-      <PageFilter
-        screenKey={SCREEN_KEY}
-        values={crud.filters}
-        filters={[
-          {
-            key: 'name',
-            label: 'Nome',
-            component: (props) => <Input {...props} />,
-          },
-        ]}
-        onSearch={crud.setFilters}
-        onClear={crud.clearFilters}
-      />
-
-      <PageTable
+      <DataTable
         screenKey={SCREEN_KEY}
         columns={[
           { key: 'name', label: 'Nome' },
-          { key: 'created_at', label: 'Criado em', type: 'date' },
-          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
+          {
+            key: 'relacionada_id',
+            label: 'Relacionada',
+            render: (val) => crud.lookupMaps.relacionada[val] || '-',
+          },
+          {
+            key: 'created_at',
+            label: 'Criado em',
+            type: 'date',
+            hideOnMobile: true,
+          },
+          {
+            key: 'updated_at',
+            label: 'Atualizado em',
+            type: 'date',
+            hideOnMobile: true,
+          },
         ]}
-        data={crud.pagedData}
-        onSave={crud.handleSave}
-        onDelete={crud.handleDelete}
-        formLoading={crud.loading}
-        pagination={crud.pagination}
-        EditForm={(props) => (
-          <EntityForm
-            {...props}
-            relatedData={crud.relatedData}
-            loading={crud.loading}
-          />
-        )}
-      />
-    </div>
-  );
-}
-```
-
-### Com Relacionamentos
-
-```jsx
-const crud = useCrud({
-  endpoint: '/api/users',
-  pageSize: 10,
-  relations: [
-    { key: 'positions', endpoint: '/api/positions', labelKey: 'name' },
-    { key: 'departments', endpoint: '/api/departments', labelKey: 'name' },
-  ],
-});
-
-// No PageTable, use lookupMaps para exibir nomes em vez de IDs
-<PageTable
-  columns={[
-    { key: 'name', label: 'Nome' },
-    {
-      key: 'position_id',
-      label: 'Cargo',
-      render: (val) => crud.lookupMaps.positions[val] || '',
-    },
-  ]}
-  refs={{ position_id: crud.lookupMaps.positions }}
-  // ...
-/>;
-```
-
----
-
-## Componentes de Página
-
-### PageHeader
-
-Cabeçalho com breadcrumb e título.
-
-```jsx
-<PageHeader
-  title="Título Principal"
-  description="Descrição opcional"
-  routes={[
-    { title: 'Home', href: '/' }, // Com link
-    { title: 'Configuração' }, // Sem link (texto)
-    { title: 'Usuários' }, // Último item (página atual)
-  ]}
-/>
-```
-
-### PageFilter
-
-Barra de filtros configurável.
-
-```jsx
-<PageFilter
-  values={filters} // Valores atuais dos filtros
-  filters={[
-    // Definição dos campos
-    {
-      key: 'name',
-      label: 'Nome',
-      component: (props) => <Input {...props} />,
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      component: (props) => (
-        <Select {...props}>
-          <SelectTrigger>
-            <SelectValue placeholder="Selecione" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="active">Ativo</SelectItem>
-            <SelectItem value="inactive">Inativo</SelectItem>
-          </SelectContent>
-        </Select>
-      ),
-    },
-  ]}
-  onSearch={setFilters} // Callback ao pesquisar
-  onClear={() => setFilters({})} // Callback ao limpar
-  showExport={true} // Mostrar botão exportar
-  onExport={(format) => {}} // Callback exportação ('csv' | 'pdf')
-/>
-```
-
-### PageTable
-
-Tabela com CRUD integrado.
-
-```jsx
-<PageTable
-  columns={[
-    { key: 'name', label: 'Nome' },
-    { key: 'email', label: 'Email' },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (val) => (val ? 'Ativo' : 'Inativo'),
-    },
-    { key: 'created_at', label: 'Criado em', type: 'date' },
-  ]}
-  data={pagedData} // Dados da página atual
-  refs={{ position_id: positionMap }} // Lookup maps
-  // Handlers
-  onCreate={handleCreate} // Antes de abrir dialog de criação
-  onSave={handleSave} // Salvar (criar/atualizar)
-  onDelete={handleDelete} // Deletar
-  // Estados
-  formLoading={loading} // Loading durante save
-  // Paginação
-  pagination={{
-    page: 1,
-    totalPages: 10,
-    onPageChange: setPage,
-  }}
-  rowsPerPage={10} // Auto-paginação se pagination não fornecido
-  // Customização
-  EditForm={(props) => <MyForm {...props} />} // Formulário customizado
-  headerActions={<CustomButton />} // Botões extras no header
-  rowAction={(row) => <CustomAction row={row} />} // Ações extras por linha
-/>
-```
-
----
-
-## Exemplos Práticos
-
-### Exemplo Completo: Página de Produtos
-
-```jsx
-'use client';
-
-import * as React from 'react';
-import { PageHeader } from '@/components/page-header';
-import { PageTable } from '@/components/page-table';
-import { PageFilter } from '@/components/page-filter';
-import { ProductForm } from '@/components/form/product-form';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select';
-import { useCrud } from '@/hooks/use-crud';
-
-export default function ProductsPage() {
-  const crud = useCrud({
-    endpoint: '/api/products',
-    pageSize: 10,
-    relations: [
-      { key: 'categories', endpoint: '/api/categories', labelKey: 'name' },
-    ],
-    messages: {
-      createSuccess: 'Produto criado com sucesso',
-      updateSuccess: 'Produto atualizado com sucesso',
-      deleteSuccess: 'Produto excluído com sucesso',
-    },
-  });
-
-  return (
-    <div className="space-y-2 p-2">
-      <PageHeader
-        title="Produtos"
-        description="Gerencie os produtos do catálogo"
-        routes={[{ title: 'Estoque' }, { title: 'Produtos' }]}
-      />
-
-      <PageFilter
-        values={crud.filters}
         filters={[
           {
             key: 'name',
@@ -587,68 +218,16 @@ export default function ProductsPage() {
               <Input {...props} placeholder="Buscar por nome..." />
             ),
           },
-          {
-            key: 'category_id',
-            label: 'Categoria',
-            component: (props) => (
-              <Select {...props} className="w-full">
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Todas as categorias" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(crud.relatedData.categories || []).map((cat) => (
-                    <SelectItem key={cat.id} value={String(cat.id)}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ),
-          },
         ]}
-        onSearch={crud.setFilters}
-        onClear={crud.clearFilters}
-        showExport={true}
-        onExport={(format) => {
-          if (format === 'csv') {
-            const csv = crud.filteredData
-              .map((p) => `${p.id},${p.name},${p.price}`)
-              .join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'products.csv';
-            a.click();
-          }
-        }}
-      />
-
-      <PageTable
-        columns={[
-          { key: 'name', label: 'Nome' },
-          {
-            key: 'price',
-            label: 'Preço',
-            render: (val) => `R$ ${val?.toFixed(2) || '0.00'}`,
-          },
-          {
-            key: 'category_id',
-            label: 'Categoria',
-            render: (val) => crud.lookupMaps.categories[val] || '-',
-          },
-          { key: 'created_at', label: 'Criado em', type: 'date' },
-        ]}
-        data={crud.pagedData}
-        refs={{ category_id: crud.lookupMaps.categories }}
+        data={crud.data}
+        loading={crud.initialLoading}
         onSave={crud.handleSave}
         onDelete={crud.handleDelete}
         formLoading={crud.loading}
-        pagination={crud.pagination}
         EditForm={(props) => (
-          <ProductForm
+          <MeuForm
             {...props}
-            categories={crud.relatedData.categories || []}
+            relacionadas={crud.relatedData.relacionada || []}
             loading={crud.loading}
           />
         )}
@@ -658,104 +237,279 @@ export default function ProductsPage() {
 }
 ```
 
+### Anatomia da Página CRUD
+
+#### 1. Constante SCREEN_KEY
+
+```jsx
+const SCREEN_KEY = 'users';
+```
+
+Obrigatória para integração com sistema de permissões.
+
+#### 2. Hook useCrud
+
+```jsx
+const crud = useCrud({
+  endpoint: '/api/users',        // Endpoint da API
+  pageSize: 10,                  // Itens por página
+  relations: [...],              // Tabelas relacionadas
+  messages: {...},               // Mensagens de toast
+});
+```
+
+#### 3. PageHeader
+
+```jsx
+<PageHeader
+  title="Título"
+  description="Descrição"
+  routes={[{ title: 'Breadcrumb' }]}
+/>
+```
+
+#### 4. DataTable
+
+```jsx
+<DataTable
+  screenKey={SCREEN_KEY}         // Para permissões
+  columns={[...]}                // Definição de colunas
+  filters={[...]}                // Filtros disponíveis
+  data={crud.data}               // Dados da API
+  loading={crud.initialLoading}  // Loading inicial
+  onSave={crud.handleSave}       // Handler de save
+  onDelete={crud.handleDelete}   // Handler de delete
+  formLoading={crud.loading}     // Loading do form
+  EditForm={...}                 // Componente de formulário
+/>
+```
+
+---
+
+## Definição de Colunas
+
+### Propriedades
+
+| Propriedade    | Tipo       | Descrição                          |
+| -------------- | ---------- | ---------------------------------- |
+| `key`          | `string`   | Nome do campo no objeto            |
+| `label`        | `string`   | Rótulo exibido no header           |
+| `type`         | `string`   | Tipo: `date`, `number`, etc.       |
+| `render`       | `function` | Função de renderização customizada |
+| `hideOnMobile` | `boolean`  | Esconder em telas pequenas         |
+
+### Exemplos
+
+```jsx
+columns={[
+  // Coluna simples
+  { key: 'name', label: 'Nome' },
+
+  // Coluna com lookup
+  {
+    key: 'position_id',
+    label: 'Cargo',
+    render: (val) => crud.lookupMaps.positions[val] || '-',
+  },
+
+  // Coluna de data (escondida em mobile)
+  {
+    key: 'created_at',
+    label: 'Criado em',
+    type: 'date',
+    hideOnMobile: true
+  },
+
+  // Coluna com render customizado
+  {
+    key: 'status',
+    label: 'Status',
+    render: (val) => <Badge variant={val}>{val}</Badge>,
+  },
+]}
+```
+
+---
+
+## Definição de Filtros
+
+### Estrutura
+
+```jsx
+filters={[
+  {
+    key: 'name',           // Campo a filtrar
+    label: 'Nome',         // Label do filtro
+    component: (props) => <Input {...props} />,
+  },
+]}
+```
+
+### Filtro com Select
+
+```jsx
+{
+  key: 'position_id',
+  label: 'Cargo',
+  component: (props) => (
+    <Select {...props} className="w-full">
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="-- selecione --" />
+      </SelectTrigger>
+      <SelectContent>
+        {(crud.relatedData.positions || []).map((p) => (
+          <SelectItem key={p.id} value={String(p.id)}>
+            {p.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  ),
+}
+```
+
+---
+
+## Row Actions Customizadas
+
+Para adicionar botões extras na coluna de ações:
+
+```jsx
+<DataTable
+  screenKey={SCREEN_KEY}
+  // ...
+  rowAction={(row, { hasPermission }) =>
+    hasPermission('grant') && (
+      <AccessButton positionId={row.id} onSaved={() => crud.refresh()} />
+    )
+  }
+/>
+```
+
 ---
 
 ## Páginas Personalizadas
 
-Para páginas que não seguem o padrão CRUD, use os hooks diretamente:
+Para páginas que não são CRUD puro, mantenha o máximo do padrão:
 
-### Dashboard com Dados Agregados
+### Estrutura Recomendada
 
 ```jsx
 'use client';
 
 import * as React from 'react';
-import { useFetch } from '@/hooks/use-api';
+import { PageHeader } from '@/components/page-header';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { usePermission } from '@/hooks/use-permission';
+
+const SCREEN_KEY = 'dashboard';
 
 export default function DashboardPage() {
-  const [stats, setStats] = React.useState({ users: 0, products: 0 });
+  const { hasPermission, canView } = usePermission();
 
-  const fetchUsers = useFetch('/api/users');
-  const fetchProducts = useFetch('/api/products');
-
-  React.useEffect(() => {
-    Promise.all([fetchUsers(), fetchProducts()]).then(([users, products]) => {
-      setStats({
-        users: users.length,
-        products: products.length,
-      });
-    });
-  }, []);
+  // Verificar permissão de visualização
+  if (!canView(SCREEN_KEY)) {
+    return <div>Sem permissão</div>;
+  }
 
   return (
-    <div className="grid grid-cols-2 gap-4 p-4">
-      <Card>
-        <CardTitle>Usuários</CardTitle>
-        <CardContent>{stats.users}</CardContent>
-      </Card>
-      <Card>
-        <CardTitle>Produtos</CardTitle>
-        <CardContent>{stats.products}</CardContent>
-      </Card>
+    <div className="space-y-2 p-2 sm:p-4">
+      <PageHeader
+        title="Dashboard"
+        description="Visão geral"
+        routes={[{ title: 'Dashboard' }]}
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>Conteúdo</CardHeader>
+          <CardContent>...</CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
 ```
 
-### Página com Formulário Único
+---
 
-```jsx
-'use client';
+## Hooks Disponíveis
 
+### useCrud
+
+```javascript
+import { useCrud } from '@/hooks/use-crud';
+
+const crud = useCrud({
+  endpoint: '/api/tabela',
+  pageSize: 10,
+  relations: [{ key: 'rel', endpoint: '/api/rel', labelKey: 'name' }],
+  messages: { createSuccess: '...', ... },
+});
+
+// Retornos disponíveis:
+crud.data              // Array de dados
+crud.filteredData      // Dados filtrados
+crud.relatedData       // Dados das relações
+crud.lookupMaps        // Maps para lookup (id → nome)
+crud.loading           // Estado de loading
+crud.initialLoading    // Loading inicial
+crud.handleSave        // Função de salvar
+crud.handleDelete      // Função de deletar
+crud.refresh           // Recarregar dados
+crud.pagination        // Objeto de paginação
+```
+
+### useAuth
+
+```javascript
+import { useAuth } from '@/hooks/use-auth';
+
+const { user, isAuthenticated, login, logout, ready, loading } = useAuth();
+```
+
+### usePermission
+
+```javascript
+import { usePermission } from '@/hooks/use-permission';
+
+const { hasPermission, canView, canEdit, canDelete, canExport, ready } =
+  usePermission();
+```
+
+### useApi
+
+```javascript
 import { useApi } from '@/hooks/use-api';
 
-export default function SettingsPage() {
-  const api = useApi('/api/settings');
-  const [settings, setSettings] = React.useState(null);
-
-  React.useEffect(() => {
-    api.getById(1).then(setSettings);
-  }, []);
-
-  const handleSave = async (data) => {
-    const updated = await api.save({ ...settings, ...data });
-    setSettings(updated);
-  };
-
-  return (
-    <SettingsForm data={settings} onSave={handleSave} loading={api.loading} />
-  );
-}
+const api = useApi('/api/tabela', { messages, showToasts: true });
+await api.save(item); // POST ou PUT
+await api.remove(id); // DELETE
+await api.get(id); // GET por ID
+await api.getAll(); // GET todos
 ```
 
 ---
 
-## Boas Práticas
+## Convenções
 
-### [CheckCircle2] Faça
+### Nomenclatura de Arquivos
 
-- Use `useCrud` para páginas CRUD padrão
-- Use `useApi` para operações específicas
-- Sempre defina `messages` customizadas em português
-- Use `lookupMaps` para exibir nomes de relacionamentos
-- Mantenha formulários em arquivos separados (`components/form/`)
+- **Páginas**: `page.jsx` em pasta com nome da rota
+- **Formulários**: `[nome]-form.jsx` em `components/forms/`
+- **Botões especiais**: `[nome]-button.jsx` em `components/buttons/`
 
-### [XCircle] Evite
+### Responsividade
 
-- Não faça fetch direto com `fetch()` em páginas CRUD
-- Não duplique lógica de filtro/paginação
-- Não crie páginas sem `PageHeader`
-- Não misture estilos inline com classes Tailwind
+- Usar `p-2 sm:p-4` para padding
+- Usar `hideOnMobile: true` em colunas de data
+- DataTable já é responsivo por padrão
 
----
+### Mensagens
 
-## Checklist para Nova Página CRUD
-
-1. [ ] Criar JSON em `database/[entidade].json`
-2. [ ] Criar API em `app/api/[entidade]/route.js`
-3. [ ] Criar Form em `components/form/[entidade]-form.jsx`
-4. [ ] Criar Página em `app/(private)/[categoria]/[entidade]/page.jsx`
-5. [ ] Adicionar item no menu em `components/app-sidebar.jsx`
+- Toast de sucesso: verde
+- Toast de erro: vermelho
+- Mensagens em português
 
 ---
 

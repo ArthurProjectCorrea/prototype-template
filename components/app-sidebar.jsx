@@ -13,6 +13,8 @@ import {
   Landmark,
 } from 'lucide-react';
 
+import { useAuth } from '@/hooks/use-auth';
+import { createClient } from '@/lib/supabase/client';
 import { NavMain } from '@/components/nav-main';
 import { NavSecondary } from '@/components/nav-secondary';
 import { NavUser } from '@/components/nav-user';
@@ -81,21 +83,46 @@ const data = {
 };
 
 export function AppSidebar({ ...props }) {
-  const [currentUser, setCurrentUser] = React.useState(null);
-  const [positions, setPositions] = React.useState([]);
+  const { user: authUser } = useAuth();
+  const supabase = React.useMemo(() => createClient(), []);
+
+  const [positionName, setPositionName] = React.useState('');
 
   React.useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (stored) setCurrentUser(JSON.parse(stored));
+    if (!authUser?.id) {
+      setPositionName('Usuário');
+      return;
+    }
 
-    fetch('/api/positions')
-      .then((r) => r.json())
-      .then(setPositions)
-      .catch(console.error);
-  }, []);
+    const loadPositionName = async () => {
+      try {
+        // Fetch user profile to get position_id
+        const { data: profile } = await supabase
+          .from('profile')
+          .select('position_id')
+          .eq('id', authUser.id)
+          .single();
 
-  const positionName =
-    positions.find((p) => p.id === currentUser?.position_id)?.name || '';
+        if (profile?.position_id) {
+          // Fetch position to get name
+          const { data: position } = await supabase
+            .from('positions')
+            .select('name')
+            .eq('id', profile.position_id)
+            .single();
+
+          if (position?.name) {
+            setPositionName(position.name);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading position:', error);
+        setPositionName('Usuário');
+      }
+    };
+
+    loadPositionName();
+  }, [authUser, supabase]);
 
   return (
     <Sidebar
@@ -125,7 +152,7 @@ export function AppSidebar({ ...props }) {
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={currentUser} />
+        <NavUser />
       </SidebarFooter>
     </Sidebar>
   );

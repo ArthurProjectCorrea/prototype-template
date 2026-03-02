@@ -30,11 +30,7 @@ export function PositionForm({
 
   const [name, setName] = React.useState(safeRow.name || '');
   const [departmentId, setDepartmentId] = React.useState(
-    safeRow.departments
-      ? Array.isArray(safeRow.departments)
-        ? safeRow.departments[0]
-        : safeRow.departments
-      : ''
+    safeRow.department_id || ''
   );
 
   // single department selected via select component
@@ -42,10 +38,13 @@ export function PositionForm({
   const handleSubmit = (e) => {
     e.preventDefault();
     const payload = {
-      id: safeRow.id,
       name,
-      departments: departmentId,
+      department_id: departmentId || null,
     };
+    // Só inclui id se for edição
+    if (safeRow.id) {
+      payload.id = safeRow.id;
+    }
     if (onSave) onSave(payload);
     if (onClose) onClose();
   };

@@ -44,15 +44,6 @@ export default function PositionsPage() {
     },
   });
 
-  // Handler customizado para salvar (normaliza departments)
-  const handleSave = async (pos) => {
-    // Backend aceita number ou array; prefere number quando só tem um
-    if (Array.isArray(pos.departments) && pos.departments.length === 1) {
-      pos.departments = pos.departments[0];
-    }
-    return crud.handleSave(pos);
-  };
-
   // Handler para atualizar permissões via AccessButton
   const handlePermissionsSaved = (row, newPermissions) => {
     // Força refresh dos dados
@@ -60,7 +51,7 @@ export default function PositionsPage() {
   };
 
   return (
-    <div className="space-y-2 p-2">
+    <div className="space-y-2 p-2 sm:p-4">
       <PageHeader
         title="Cargos"
         description="Gerencie os cargos e permissões da plataforma"
@@ -75,20 +66,24 @@ export default function PositionsPage() {
         columns={[
           { key: 'name', label: 'Nome' },
           {
-            key: 'departments',
-            label: 'Departamentos',
+            key: 'department_id',
+            label: 'Departamento',
             render: (val) => {
-              const list = Array.isArray(val) ? val : [val];
-              return (
-                list
-                  .map((id) => crud.lookupMaps.departments[id])
-                  .filter(Boolean)
-                  .join(', ') || '-'
-              );
+              return crud.lookupMaps.departments[val] || '-';
             },
           },
-          { key: 'created_at', label: 'Criado em', type: 'date' },
-          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
+          {
+            key: 'created_at',
+            label: 'Criado em',
+            type: 'date',
+            hideOnMobile: true,
+          },
+          {
+            key: 'updated_at',
+            label: 'Atualizado em',
+            type: 'date',
+            hideOnMobile: true,
+          },
         ]}
         filters={[
           {
@@ -118,7 +113,8 @@ export default function PositionsPage() {
           },
         ]}
         data={crud.data}
-        onSave={handleSave}
+        loading={crud.initialLoading}
+        onSave={crud.handleSave}
         onDelete={crud.handleDelete}
         formLoading={crud.loading}
         EditForm={(props) => (
@@ -132,7 +128,6 @@ export default function PositionsPage() {
           hasPermission('grant') && (
             <AccessButton
               positionId={row.id}
-              initial={row.permissions || []}
               onSaved={(items) => handlePermissionsSaved(row, items)}
             />
           )

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { usePermission } from '@/hooks/use-permission';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   ColumnFiltersState,
   SortingState,
@@ -66,6 +67,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { ButtonGroup } from '@/components/ui/button-group';
 import { Field, FieldLabel } from '@/components/ui/field';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Select,
   SelectContent,
@@ -94,7 +96,7 @@ import {
  * - Export functionality
  *
  * Props:
- *   - columns: array of { key, label, type?, render?, sortable?, hideable? }
+ *   - columns: array of { key, label, type?, render?, sortable?, hideable?, hideOnMobile? }
  *   - data: array of row objects
  *   - filters: array of { key, label, component, componentProps? } for filter bar
  *   - screenKey: for permission checking
@@ -119,6 +121,7 @@ export function DataTable({
   onDelete = () => {},
   EditForm,
   formLoading = false,
+  loading = false,
   pagination,
   rowsPerPage = 10,
   refs = {},
@@ -138,13 +141,31 @@ export function DataTable({
   const allowDelete = !screenKey || canDelete(screenKey);
   const canExport = !screenKey || checkExport(screenKey);
 
+  // Detect mobile for responsive columns
+  const isMobile = useIsMobile();
+
+  // Filter columns based on hideOnMobile
+  const visibleColumns = React.useMemo(() => {
+    if (!isMobile) return columns;
+    return columns.filter((col) => !col.hideOnMobile);
+  }, [columns, isMobile]);
+
   // State for filters
   const [filterValues, setFilterValues] = React.useState({});
 
   // State for table
   const [sorting, setSorting] = React.useState([]);
   const [columnFilters, setColumnFilters] = React.useState([]);
-  const [columnVisibility, setColumnVisibility] = React.useState({});
+  // Hide created_at and updated_at columns by default
+  const [columnVisibility, setColumnVisibility] = React.useState(() => {
+    const initial = {};
+    columns.forEach((col) => {
+      if (col.key === 'created_at' || col.key === 'updated_at') {
+        initial[col.key] = true; // true = hidden
+      }
+    });
+    return initial;
+  });
   const [internalSorting, setInternalSorting] = React.useState([]);
   const [open, setOpen] = React.useState(false);
   const [editingRow, setEditingRow] = React.useState(null);
@@ -253,291 +274,336 @@ export function DataTable({
 
   return (
     <>
-      {/* Filter Bar */}
-      {filters.length > 0 && (
-        <Card className="mb-4">
-          <CardContent className="pt-6">
-            <div className="grid gap-4 mb-4 items-end grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {filters.map(
-                ({ key, label, component: Component, componentProps = {} }) => (
-                  <div key={key} className="flex flex-col w-full">
-                    <label
-                      className="text-sm font-medium mb-1"
-                      htmlFor={`filter-${key}`}
-                    >
-                      {label}
-                    </label>
-                    <Component
-                      id={`filter-${key}`}
-                      value={filterValues[key] ?? ''}
-                      onChange={(e) => {
-                        const v =
-                          e && e.target !== undefined ? e.target.value : e;
-                        handleFilterChange(key, v);
-                      }}
-                      onValueChange={(v) => handleFilterChange(key, v)}
-                      className="w-full"
-                      {...componentProps}
-                    />
-                  </div>
-                )
-              )}
-            </div>
-            <div className="flex justify-end gap-2">
-              {showExport && (
-                <ButtonGroup>
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={() => onExport?.('csv')}
-                    disabled={!canExport || !onExport}
-                  >
-                    Exportar
-                  </Button>
-                  <DropdownMenuBase>
-                    <DropdownMenuTriggerBase asChild>
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="pl-2!"
-                        disabled={!canExport || !onExport}
-                      >
-                        <ChevronDownIcon />
-                      </Button>
-                    </DropdownMenuTriggerBase>
-                    <DropdownMenuContentBase align="end" className="w-44">
-                      <DropdownMenuItemBase onClick={() => onExport?.('csv')}>
-                        CSV
-                      </DropdownMenuItemBase>
-                      <DropdownMenuItemBase onClick={() => onExport?.('pdf')}>
-                        PDF
-                      </DropdownMenuItemBase>
-                    </DropdownMenuContentBase>
-                  </DropdownMenuBase>
-                </ButtonGroup>
-              )}
-              {filters.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="lg"
-                  onClick={handleClearFilters}
-                >
-                  Limpar
-                </Button>
-              )}
-            </div>
+      {/* Loading State - blocks entire table */}
+      {loading && (
+        <Card className="min-h-96">
+          <CardContent className="h-96 flex items-center justify-center">
+            <Spinner className="size-12 text-primary" />
           </CardContent>
         </Card>
       )}
 
-      {/* Data Table */}
-      <Card>
-        <CardHeader className="flex items-center justify-between space-x-4 pb-4">
-          {/* Left Side: Rows per Page + Pagination */}
-          <div className="flex items-center gap-4">
-            {/* Rows Per Page Select */}
-            <Field orientation="horizontal" className="w-fit m-0">
-              <FieldLabel htmlFor="select-rows-per-page" className="text-xs">
-                Linhas por página
-              </FieldLabel>
-              <Select
-                value={String(internalRowsPerPage)}
-                onValueChange={(val) => {
-                  setInternalRowsPerPage(Number(val));
-                  setInternalPage(1);
-                }}
-              >
-                <SelectTrigger className="w-20" id="select-rows-per-page">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent align="start">
-                  <SelectGroup>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="25">25</SelectItem>
-                    <SelectItem value="50">50</SelectItem>
-                    <SelectItem value="100">100</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </Field>
-
-            {/* Pagination - Icon Only */}
-            {effectivePagination && (
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() =>
-                    effectivePagination.page > 1 &&
-                    effectivePagination.onPageChange(
-                      effectivePagination.page - 1
+      {/* Content - Hidden during loading */}
+      {!loading && (
+        <>
+          {/* Filter Bar */}
+          {filters.length > 0 && (
+            <Card className="mb-4">
+              <CardContent className="pt-6">
+                <div className="grid gap-4 mb-4 items-end grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  {filters.map(
+                    ({
+                      key,
+                      label,
+                      component: Component,
+                      componentProps = {},
+                    }) => (
+                      <div key={key} className="flex flex-col w-full">
+                        <label
+                          className="text-sm font-medium mb-1"
+                          htmlFor={`filter-${key}`}
+                        >
+                          {label}
+                        </label>
+                        <Component
+                          id={`filter-${key}`}
+                          value={filterValues[key] ?? ''}
+                          onChange={(e) => {
+                            const v =
+                              e && e.target !== undefined ? e.target.value : e;
+                            handleFilterChange(key, v);
+                          }}
+                          onValueChange={(v) => handleFilterChange(key, v)}
+                          className="w-full"
+                          {...componentProps}
+                        />
+                      </div>
                     )
-                  }
-                  disabled={effectivePagination.page === 1}
-                  title="Anterior"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-xs text-muted-foreground px-2">
-                  {effectivePagination.page} / {effectivePagination.totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() =>
-                    effectivePagination.page < effectivePagination.totalPages &&
-                    effectivePagination.onPageChange(
-                      effectivePagination.page + 1
-                    )
-                  }
-                  disabled={
-                    effectivePagination.page === effectivePagination.totalPages
-                  }
-                  title="Próximo"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {headerActions}
-            {/* Column Visibility Control */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" title="Colunas">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <div className="px-2 py-1.5 text-sm font-semibold">Colunas</div>
-                {columns.map((col) => (
-                  <DropdownMenuCheckboxItem
-                    key={col.key}
-                    className="capitalize"
-                    checked={!columnVisibility[col.key]}
-                    onCheckedChange={(value) =>
-                      setColumnVisibility((prev) => ({
-                        ...prev,
-                        [col.key]: !value,
-                      }))
-                    }
-                  >
-                    {col.label}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {EditForm && allowEdit && (
-              <Button size="lg" onClick={handleCreate} disabled={formLoading}>
-                Cadastrar <Plus />
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-
-        <CardContent className="min-h-40">
-          <Table className="min-w-full">
-            <TableHeader>
-              <TableRow className="even:bg-muted m-0 border-t p-0">
-                {columns
-                  .filter((col) => !columnVisibility[col.key])
-                  .map((col) => (
-                    <TableHead
-                      key={col.key}
-                      className="border px-4 py-2 text-center font-bold"
-                    >
-                      {col.label}
-                    </TableHead>
-                  ))}
-                <TableHead className="border px-4 py-2 text-center font-bold">
-                  Ações
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {displayData.length === 0 ? (
-                <TableRow className="m-0 border-t p-0">
-                  <TableCell
-                    colSpan={
-                      columns.filter((c) => !columnVisibility[c.key]).length + 1
-                    }
-                    className="text-center py-4"
-                  >
-                    Nenhum item encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                displayData.map((row, i) => (
-                  <TableRow className="even:bg-muted m-0 border-t p-0" key={i}>
-                    {columns
-                      .filter((col) => !columnVisibility[col.key])
-                      .map((col) => {
-                        let cell = row[col.key];
-                        if (col.type === 'date' && cell != null) {
-                          cell = new Date(cell).toLocaleString(undefined, {
-                            year: 'numeric',
-                            month: 'numeric',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: 'numeric',
-                          });
-                        }
-                        if (col.render) {
-                          cell = col.render(cell, row);
-                        }
-                        if (refs[col.key]) {
-                          const ref = refs[col.key];
-                          if (typeof ref === 'function') {
-                            cell = ref(cell, row);
-                          } else if (cell != null && ref[cell] !== undefined) {
-                            cell = ref[cell];
-                          }
-                        }
-                        return (
-                          <TableCell
-                            key={col.key}
-                            className="border px-4 py-2 text-center"
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row justify-end gap-2">
+                  {showExport && (
+                    <ButtonGroup>
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        onClick={() => onExport?.('csv')}
+                        disabled={!canExport || !onExport}
+                      >
+                        Exportar
+                      </Button>
+                      <DropdownMenuBase>
+                        <DropdownMenuTriggerBase asChild>
+                          <Button
+                            variant="outline"
+                            size="lg"
+                            className="pl-2!"
+                            disabled={!canExport || !onExport}
                           >
-                            {cell}
-                          </TableCell>
-                        );
-                      })}
-                    <TableCell className="space-x-2 border px-4 py-2 text-center">
-                      {rowAction &&
-                        rowAction(row, {
-                          hasPermission: (perm) =>
-                            hasPermission(screenKey, perm),
-                        })}
-                      {allowEdit && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          aria-label="Edit"
-                          onClick={() => handleEdit(row)}
+                            <ChevronDownIcon />
+                          </Button>
+                        </DropdownMenuTriggerBase>
+                        <DropdownMenuContentBase align="end" className="w-44">
+                          <DropdownMenuItemBase
+                            onClick={() => onExport?.('csv')}
+                          >
+                            CSV
+                          </DropdownMenuItemBase>
+                          <DropdownMenuItemBase
+                            onClick={() => onExport?.('pdf')}
+                          >
+                            PDF
+                          </DropdownMenuItemBase>
+                        </DropdownMenuContentBase>
+                      </DropdownMenuBase>
+                    </ButtonGroup>
+                  )}
+                  {filters.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={handleClearFilters}
+                      className="w-full sm:w-auto"
+                    >
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Data Table */}
+          <Card>
+            <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-4">
+              {/* Left Side: Rows per Page + Pagination */}
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                {/* Rows Per Page Select */}
+                <Field orientation="horizontal" className="w-fit m-0">
+                  <FieldLabel
+                    htmlFor="select-rows-per-page"
+                    className="text-xs hidden sm:inline"
+                  >
+                    Linhas por página
+                  </FieldLabel>
+                  <Select
+                    value={String(internalRowsPerPage)}
+                    onValueChange={(val) => {
+                      setInternalRowsPerPage(Number(val));
+                      setInternalPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-20" id="select-rows-per-page">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent align="start">
+                      <SelectGroup>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
+
+                {/* Pagination - Icon Only */}
+                {effectivePagination && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        effectivePagination.page > 1 &&
+                        effectivePagination.onPageChange(
+                          effectivePagination.page - 1
+                        )
+                      }
+                      disabled={effectivePagination.page === 1}
+                      title="Anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground px-2">
+                      {effectivePagination.page} /{' '}
+                      {effectivePagination.totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        effectivePagination.page <
+                          effectivePagination.totalPages &&
+                        effectivePagination.onPageChange(
+                          effectivePagination.page + 1
+                        )
+                      }
+                      disabled={
+                        effectivePagination.page ===
+                        effectivePagination.totalPages
+                      }
+                      title="Próximo"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {headerActions}
+                {/* Column Visibility Control */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" title="Colunas">
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <div className="px-2 py-1.5 text-sm font-semibold">
+                      Colunas
+                    </div>
+                    {visibleColumns.map((col) => (
+                      <DropdownMenuCheckboxItem
+                        key={col.key}
+                        className="capitalize"
+                        checked={!columnVisibility[col.key]}
+                        onCheckedChange={(value) =>
+                          setColumnVisibility((prev) => ({
+                            ...prev,
+                            [col.key]: !value,
+                          }))
+                        }
+                      >
+                        {col.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {EditForm && allowEdit && (
+                  <Button
+                    size="lg"
+                    onClick={handleCreate}
+                    disabled={formLoading}
+                    className="w-full sm:w-auto"
+                  >
+                    <span className="hidden sm:inline">Cadastrar</span>
+                    <Plus />
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent className="min-h-40">
+              <Table className="min-w-full">
+                <TableHeader>
+                  <TableRow className="even:bg-muted m-0 border-t p-0">
+                    {visibleColumns
+                      .filter((col) => !columnVisibility[col.key])
+                      .map((col) => (
+                        <TableHead
+                          key={col.key}
+                          className="border px-2 sm:px-4 py-2 text-center font-bold"
                         >
-                          <SquarePen />
-                        </Button>
-                      )}
-                      {allowDelete && (
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          aria-label="Delete"
-                          onClick={() => handleDeleteTrigger(row)}
-                        >
-                          <Trash />
-                        </Button>
-                      )}
-                    </TableCell>
+                          {col.label}
+                        </TableHead>
+                      ))}
+                    <TableHead className="border px-2 sm:px-4 py-2 text-center font-bold">
+                      Ações
+                    </TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {displayData.length === 0 ? (
+                    <TableRow className="m-0 border-t p-0">
+                      <TableCell
+                        colSpan={
+                          visibleColumns.filter((c) => !columnVisibility[c.key])
+                            .length + 1
+                        }
+                        className="text-center py-4"
+                      >
+                        Nenhum item encontrado.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    displayData.map((row, i) => (
+                      <TableRow
+                        className="even:bg-muted m-0 border-t p-0"
+                        key={i}
+                      >
+                        {visibleColumns
+                          .filter((col) => !columnVisibility[col.key])
+                          .map((col) => {
+                            let cell = row[col.key];
+                            if (col.type === 'date' && cell != null) {
+                              cell = new Date(cell).toLocaleString(undefined, {
+                                year: 'numeric',
+                                month: 'numeric',
+                                day: 'numeric',
+                                hour: 'numeric',
+                                minute: 'numeric',
+                              });
+                            }
+                            if (col.render) {
+                              cell = col.render(cell, row);
+                            }
+                            if (refs[col.key]) {
+                              const ref = refs[col.key];
+                              if (typeof ref === 'function') {
+                                cell = ref(cell, row);
+                              } else if (
+                                cell != null &&
+                                ref[cell] !== undefined
+                              ) {
+                                cell = ref[cell];
+                              }
+                            }
+                            return (
+                              <TableCell
+                                key={col.key}
+                                className="border px-2 sm:px-4 py-2 text-center"
+                              >
+                                {cell}
+                              </TableCell>
+                            );
+                          })}
+                        <TableCell className="space-x-1 sm:space-x-2 border px-2 sm:px-4 py-2 text-center whitespace-nowrap">
+                          {rowAction &&
+                            rowAction(row, {
+                              hasPermission: (perm) =>
+                                hasPermission(screenKey, perm),
+                            })}
+                          {allowEdit && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              aria-label="Edit"
+                              onClick={() => handleEdit(row)}
+                            >
+                              <SquarePen />
+                            </Button>
+                          )}
+                          {allowDelete && (
+                            <Button
+                              variant="destructive"
+                              size="icon"
+                              aria-label="Delete"
+                              onClick={() => handleDeleteTrigger(row)}
+                            >
+                              <Trash />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       {/* Edit/Create Dialog */}
       {EditForm && (

@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
 export default function HomePage() {
   return (
-    <div className="space-y-2 p-2">
+    <div className="space-y-2 p-2 sm:p-4">
       <PageHeader
         title="Dashboard"
         description="Visão geral do sistema"

@@ -24,7 +24,7 @@ export default function DepartmentsPage() {
   });
 
   return (
-    <div className="space-y-2 p-2">
+    <div className="space-y-2 p-2 sm:p-4">
       <PageHeader
         title="Departamentos"
         description="Gerencie os departamentos da organização"
@@ -38,8 +38,18 @@ export default function DepartmentsPage() {
         screenKey={SCREEN_KEY}
         columns={[
           { key: 'name', label: 'Nome' },
-          { key: 'created_at', label: 'Criado em', type: 'date' },
-          { key: 'updated_at', label: 'Atualizado em', type: 'date' },
+          {
+            key: 'created_at',
+            label: 'Criado em',
+            type: 'date',
+            hideOnMobile: true,
+          },
+          {
+            key: 'updated_at',
+            label: 'Atualizado em',
+            type: 'date',
+            hideOnMobile: true,
+          },
         ]}
         filters={[
           {
@@ -51,6 +61,7 @@ export default function DepartmentsPage() {
           },
         ]}
         data={crud.data}
+        loading={crud.initialLoading}
         onSave={crud.handleSave}
         onDelete={crud.handleDelete}
         formLoading={crud.loading}

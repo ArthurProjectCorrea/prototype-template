@@ -20,54 +20,69 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Settings, Search } from 'lucide-react';
+import { Settings, Search, Loader2 } from 'lucide-react';
 
-export function AccessButton({ positionId, initial = [], onSaved }) {
+export function AccessButton({ positionId, onSaved }) {
   const [open, setOpen] = React.useState(false);
   const [screens, setScreens] = React.useState([]); // array of {id, name, key}
   const [perms, setPerms] = React.useState([]); // array of {id, key, name}
   const [search, setSearch] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
 
   // Estado para rastrear permissões marcadas: { [screenKey]: { [permKey]: boolean } }
   const [checkedPerms, setCheckedPerms] = React.useState({});
 
-  // Carrega screens e permissions
+  // Carrega screens, permissions e access quando o modal abre
   React.useEffect(() => {
-    fetch('/api/screens')
-      .then((r) => r.json())
-      .then(setScreens)
-      .catch(console.error);
-    fetch('/api/permissions')
-      .then((r) => r.json())
-      .then(setPerms)
-      .catch(console.error);
-  }, []);
+    if (!open) return;
 
-  // Inicializa checkedPerms quando screens e perms estiverem carregados
-  React.useEffect(() => {
-    if (screens.length && perms.length) {
-      const initialChecked = {};
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        // Carrega telas, permissões e acessos do cargo em paralelo
+        const [screensRes, permsRes, accessRes] = await Promise.all([
+          fetch('/api/screens'),
+          fetch('/api/permissions'),
+          fetch(`/api/positions?id=${positionId}&include=access`),
+        ]);
 
-      // Inicializa todas as telas com todas as permissões desmarcadas
-      screens.forEach((screen) => {
-        initialChecked[screen.key] = {};
-        perms.forEach((perm) => {
-          initialChecked[screen.key][perm.key] = false;
+        const screensData = await screensRes.json();
+        const permsData = await permsRes.json();
+        const positionData = await accessRes.json();
+
+        setScreens(screensData);
+        setPerms(permsData);
+
+        // Inicializa checkedPerms
+        const initialChecked = {};
+        screensData.forEach((screen) => {
+          initialChecked[screen.key] = {};
+          permsData.forEach((perm) => {
+            initialChecked[screen.key][perm.key] = false;
+          });
         });
-      });
 
-      // Marca as permissões que já existem no initial
-      initial.forEach((item) => {
-        const screenKey = item.screen_key;
-        const permKey = item.permission_key;
-        if (initialChecked[screenKey]) {
-          initialChecked[screenKey][permKey] = true;
-        }
-      });
+        // Marca as permissões que já existem
+        const accessList = positionData.access || [];
+        accessList.forEach((item) => {
+          const screenKey = item.screen?.key;
+          const permKey = item.permission?.key;
+          if (screenKey && permKey && initialChecked[screenKey]) {
+            initialChecked[screenKey][permKey] = true;
+          }
+        });
 
-      setCheckedPerms(initialChecked);
-    }
-  }, [screens, perms, initial]);
+        setCheckedPerms(initialChecked);
+      } catch (err) {
+        console.error('Erro ao carregar dados:', err);
+        toast.error('Erro ao carregar permissões');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [open, positionId]);
 
   // Filtra telas baseado na pesquisa
   const filteredScreens = React.useMemo(() => {
@@ -139,69 +154,80 @@ export function AccessButton({ positionId, initial = [], onSaved }) {
           <DialogTitle>Acessos</DialogTitle>
         </DialogHeader>
 
-        {/* Campo de pesquisa */}
-        <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            placeholder="Pesquisar telas..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <>
+            {/* Campo de pesquisa */}
+            <div className="relative mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar telas..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
 
-        {/* Lista de acordeões */}
-        <div className="max-h-80 overflow-y-auto pr-2">
-          <Accordion type="single" collapsible className="w-full">
-            {filteredScreens.map((screen) => (
-              <AccordionItem key={screen.id} value={screen.key}>
-                <AccordionTrigger className="text-sm">
-                  <div className="flex items-center gap-2">
-                    <span>{screen.name}</span>
-                    {getCheckedCount(screen.key) > 0 && (
-                      <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
-                        {getCheckedCount(screen.key)}
-                      </span>
-                    )}
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-3 gap-3 pl-2">
-                    {perms.map((perm) => (
-                      <div key={perm.id} className="flex items-center gap-2">
-                        <Checkbox
-                          id={`${screen.key}-${perm.key}`}
-                          checked={
-                            checkedPerms[screen.key]?.[perm.key] || false
-                          }
-                          onCheckedChange={() =>
-                            togglePermission(screen.key, perm.key)
-                          }
-                        />
-                        <Label
-                          htmlFor={`${screen.key}-${perm.key}`}
-                          className="text-sm font-normal cursor-pointer"
-                        >
-                          {perm.name}
-                        </Label>
+            {/* Lista de acordeões */}
+            <div className="max-h-80 overflow-y-auto pr-2">
+              <Accordion type="single" collapsible className="w-full">
+                {filteredScreens.map((screen) => (
+                  <AccordionItem key={screen.id} value={screen.key}>
+                    <AccordionTrigger className="text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>{screen.name}</span>
+                        {getCheckedCount(screen.key) > 0 && (
+                          <span className="text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                            {getCheckedCount(screen.key)}
+                          </span>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 pl-2">
+                        {perms.map((perm) => (
+                          <div
+                            key={perm.id}
+                            className="flex items-center gap-2"
+                          >
+                            <Checkbox
+                              id={`${screen.key}-${perm.key}`}
+                              checked={
+                                checkedPerms[screen.key]?.[perm.key] || false
+                              }
+                              onCheckedChange={() =>
+                                togglePermission(screen.key, perm.key)
+                              }
+                            />
+                            <Label
+                              htmlFor={`${screen.key}-${perm.key}`}
+                              className="text-sm font-normal cursor-pointer"
+                            >
+                              {perm.name}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
 
-          {filteredScreens.length === 0 && (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              Nenhuma tela encontrada
-            </p>
-          )}
-        </div>
+              {filteredScreens.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Nenhuma tela encontrada
+                </p>
+              )}
+            </div>
 
-        <DialogFooter>
-          <Button onClick={handleSave}>Salvar</Button>
-        </DialogFooter>
+            <DialogFooter>
+              <Button onClick={handleSave}>Salvar</Button>
+            </DialogFooter>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { getUser } from '@/lib/auth';
+import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from './use-auth';
+import { createClient } from '@/lib/supabase/client';
 
 /**
  * Hook para verificar permissões do usuário logado
- * Carrega permissões do cargo uma vez e fornece métodos para verificar
+ * Carrega permissões do cargo via tabela access do Supabase
  *
  * @example
  * const { hasPermission, canView, canEdit, canDelete, canExport } = usePermission();
@@ -18,26 +19,55 @@ import { getUser } from '@/lib/auth';
  * if (canEdit('users')) { ... }
  */
 export function usePermission() {
+  const { user, ready: authReady } = useAuth();
+  const supabase = createClient();
+
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ready, setReady] = useState(false);
 
-  // Carrega permissões do cargo do usuário
+  // Carrega permissões do cargo do usuário via tabela access
   useEffect(() => {
     const loadPermissions = async () => {
+      if (!authReady) return;
+
       try {
-        const user = getUser();
-        if (!user?.position_id) {
+        setLoading(true);
+
+        // Se não há user ou position_id, sem permissões
+        if (!user?.id) {
           setPermissions([]);
-          setLoading(false);
           setReady(true);
           return;
         }
 
-        const res = await fetch('/api/positions');
-        const positions = await res.json();
-        const position = positions.find((p) => p.id === user.position_id);
-        setPermissions(position?.permissions || []);
+        // Buscar profile do usuário para pegar position_id
+        const { data: profile } = await supabase
+          .from('profile')
+          .select('position_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile?.position_id) {
+          setPermissions([]);
+          setReady(true);
+          return;
+        }
+
+        // Buscar permissões (access) para este cargo
+        const { data: accessRules } = await supabase
+          .from('access')
+          .select('screen:screen_id(key), permission:permission_id(key)')
+          .eq('position_id', profile.position_id);
+
+        if (accessRules) {
+          // Transformar em formato compatível com o restante da aplicação
+          const formattedPermissions = accessRules.map((rule) => ({
+            screen_key: rule.screen?.key,
+            permission_key: rule.permission?.key,
+          }));
+          setPermissions(formattedPermissions);
+        }
       } catch (err) {
         console.error('Error loading permissions:', err);
         setPermissions([]);
@@ -48,7 +78,7 @@ export function usePermission() {
     };
 
     loadPermissions();
-  }, []);
+  }, [authReady, user?.id, supabase]);
 
   /**
    * Verifica se o usuário tem uma permissão específica para uma tela
