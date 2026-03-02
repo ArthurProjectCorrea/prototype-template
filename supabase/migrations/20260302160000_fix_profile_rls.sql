@@ -39,6 +39,9 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profile;
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profile;
 DROP POLICY IF EXISTS "Users can delete own profile" ON public.profile;
+DROP POLICY IF EXISTS "Users can update profiles" ON public.profile;
+DROP POLICY IF EXISTS "Users with permission can insert profiles" ON public.profile;
+DROP POLICY IF EXISTS "Users with permission can delete profiles" ON public.profile;
 
 -- ============================================
 -- NEW PROFILE POLICIES

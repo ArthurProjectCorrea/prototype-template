@@ -16,7 +16,7 @@ export function SiteHeader() {
   return (
     <header className="bg-gradient-to-r from-primary-foreground to-primary sticky top-0 z-50 flex w-full items-center justify-between border-b">
       <div className="flex h-(--header-height) w-full items-center gap-2 px-4">
-        <SidebarTrigger className="-ml-1" />
+        <SidebarTrigger className="-ml-1 text-muted-foreground" />
         <Separator orientation="vertical" className="mr-2 h-4" />
         <div className="flex">
           <Image
